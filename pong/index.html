@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pong</title>
+<style>
+  :root { --bg: #0b0f1a; --fg: #e8ecf5; --accent: #4fd1c5; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; touch-action: none; }
+  canvas { display: block; max-width: 100vw; max-height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="game" width="900" height="560"></canvas>
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+
+  // ---- Konfiguration ----
+  const PADDLE_W = 14, PADDLE_H = 90, PADDLE_SPEED = 520, MARGIN = 30;
+  const BALL_R = 8, BALL_START_SPEED = 380, BALL_SPEEDUP = 1.06, BALL_MAX_SPEED = 1100;
+  const WIN_SCORE = 7;
+  const DIFFICULTY = {
+    leicht: { speed: 0.55, error: 60, reaction: 0.25 },
+    mittel: { speed: 0.8,  error: 30, reaction: 0.12 },
+    schwer: { speed: 1.0,  error: 8,  reaction: 0.04 },
+  };
+  const DIFF_KEYS = Object.keys(DIFFICULTY);
+
+  // ---- Zustand ----
+  const state = {
+    screen: "menu",          // menu | serve | play | pause | over
+    menuIndex: 0,            // 0 = 1 Spieler, 1 = 2 Spieler
+    diffIndex: 1,
+    twoPlayer: false,
+    left:  { y: H / 2 - PADDLE_H / 2, score: 0 },
+    right: { y: H / 2 - PADDLE_H / 2, score: 0 },
+    ball:  { x: W / 2, y: H / 2, vx: 0, vy: 0, speed: BALL_START_SPEED },
+    serveDir: 1,
+    serveTimer: 0,
+    ai: { target: H / 2, timer: 0 },
+    winner: "",
+    particles: [],
+  };
+
+  // ---- Eingabe ----
+  const keys = new Set();
+  window.addEventListener("keydown", (e) => {
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
+    if (e.repeat) return;
+    keys.add(e.key.toLowerCase());
+    onKeyPress(e.key);
+  });
+  window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
+  window.addEventListener("blur", () => {
+    keys.clear();
+    if (state.screen === "play" || state.screen === "serve") state.screen = "pause";
+  });
+
+  // Maus/Touch steuert linken Schläger (im 1-Spieler-Modus)
+  let pointerY = null;
+  function canvasY(clientY) {
+    const r = canvas.getBoundingClientRect();
+    return (clientY - r.top) * (H / r.height);
+  }
+  canvas.addEventListener("pointermove", (e) => { pointerY = canvasY(e.clientY); });
+  canvas.addEventListener("pointerdown", (e) => {
+    pointerY = canvasY(e.clientY);
+    ensureAudio();
+    if (state.screen === "menu") startGame();
+    else if (state.screen === "over") state.screen = "menu";
+    else if (state.screen === "pause") state.screen = "play";
+  });
+  canvas.addEventListener("pointerleave", () => { pointerY = null; });
+
+  function onKeyPress(key) {
+    ensureAudio();
+    const k = key.toLowerCase();
+    switch (state.screen) {
+      case "menu":
+        if (k === "arrowup" || k === "arrowdown" || k === "w" || k === "s") {
+          state.menuIndex = 1 - state.menuIndex; beep(520, 0.04);
+        } else if (k === "arrowleft" || k === "a") {
+          state.diffIndex = (state.diffIndex + DIFF_KEYS.length - 1) % DIFF_KEYS.length; beep(440, 0.04);
+        } else if (k === "arrowright" || k === "d") {
+          state.diffIndex = (state.diffIndex + 1) % DIFF_KEYS.length; beep(440, 0.04);
+        } else if (k === "1") { state.menuIndex = 0; startGame(); }
+        else if (k === "2") { state.menuIndex = 1; startGame(); }
+        else if (k === "enter" || k === " ") startGame();
+        break;
+      case "serve":
+      case "play":
+        if (k === "p" || k === "escape") state.screen = "pause";
+        break;
+      case "pause":
+        if (k === "p" || k === " " || k === "enter") state.screen = state.ball.vx === 0 ? "serve" : "play";
+        else if (k === "escape" || k === "q") state.screen = "menu";
+        break;
+      case "over":
+        if (k === "enter" || k === " ") startGame();
+        else if (k === "escape") state.screen = "menu";
+        break;
+    }
+  }
+
+  // ---- Audio (WebAudio, ohne Dateien) ----
+  let audio = null;
+  function ensureAudio() {
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch { audio = null; }
+    }
+    if (audio && audio.state === "suspended") audio.resume();
+  }
+  function beep(freq, dur = 0.06, type = "square", vol = 0.08) {
+    if (!audio) return;
+    const t = audio.currentTime;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + dur);
+  }
+
+  // ---- Spiellogik ----
+  function startGame() {
+    state.twoPlayer = state.menuIndex === 1;
+    state.left.score = 0;
+    state.right.score = 0;
+    state.left.y = state.right.y = H / 2 - PADDLE_H / 2;
+    state.serveDir = Math.random() < 0.5 ? -1 : 1;
+    state.particles = [];
+    resetBall();
+    beep(660, 0.1, "triangle");
+  }
+
+  function resetBall() {
+    const b = state.ball;
+    b.x = W / 2; b.y = H / 2; b.vx = 0; b.vy = 0; b.speed = BALL_START_SPEED;
+    state.serveTimer = 1.0;
+    state.screen = "serve";
+  }
+
+  function serve() {
+    const b = state.ball;
+    const angle = (Math.random() * 0.8 - 0.4); // ca. ±23°
+    b.vx = Math.cos(angle) * b.speed * state.serveDir;
+    b.vy = Math.sin(angle) * b.speed;
+    state.screen = "play";
+  }
+
+  function clampPaddle(p) {
+    p.y = Math.max(0, Math.min(H - PADDLE_H, p.y));
+  }
+
+  function updatePaddles(dt) {
+    const L = state.left, R = state.right;
+
+    // Linker Spieler: W/S (und im 1-Spieler-Modus auch Pfeiltasten oder Maus)
+    let dirL = 0;
+    if (keys.has("w")) dirL -= 1;
+    if (keys.has("s")) dirL += 1;
+    if (!state.twoPlayer) {
+      if (keys.has("arrowup")) dirL -= 1;
+      if (keys.has("arrowdown")) dirL += 1;
+    }
+    if (dirL !== 0) {
+      L.y += Math.sign(dirL) * PADDLE_SPEED * dt;
+    } else if (pointerY !== null && !state.twoPlayer) {
+      const target = pointerY - PADDLE_H / 2;
+      const maxStep = PADDLE_SPEED * 1.6 * dt;
+      L.y += Math.max(-maxStep, Math.min(maxStep, target - L.y));
+    }
+    clampPaddle(L);
+
+    // Rechter Spieler: Pfeiltasten oder KI
+    if (state.twoPlayer) {
+      let dirR = 0;
+      if (keys.has("arrowup")) dirR -= 1;
+      if (keys.has("arrowdown")) dirR += 1;
+      R.y += dirR * PADDLE_SPEED * dt;
+    } else {
+      updateAI(dt);
+    }
+    clampPaddle(R);
+  }
+
+  function updateAI(dt) {
+    const d = DIFFICULTY[DIFF_KEYS[state.diffIndex]];
+    const R = state.right, b = state.ball, ai = state.ai;
+
+    ai.timer -= dt;
+    if (ai.timer <= 0) {
+      ai.timer = d.reaction;
+      if (b.vx > 0) {
+        // Vorhersage, wo der Ball ankommt (inkl. Abprallen an Wänden)
+        const targetX = W - MARGIN - PADDLE_W;
+        const t = (targetX - b.x) / b.vx;
+        let y = b.y + b.vy * t;
+        const span = H - 2 * BALL_R;
+        y -= BALL_R;
+        y = ((y % (2 * span)) + 2 * span) % (2 * span);
+        if (y > span) y = 2 * span - y;
+        y += BALL_R;
+        ai.target = y + (Math.random() * 2 - 1) * d.error;
+      } else {
+        ai.target = H / 2; // zurück zur Mitte
+      }
+    }
+    const center = R.y + PADDLE_H / 2;
+    const diff = ai.target - center;
+    const maxStep = PADDLE_SPEED * d.speed * dt;
+    if (Math.abs(diff) > 4) R.y += Math.max(-maxStep, Math.min(maxStep, diff));
+  }
+
+  function paddleHit(paddleX, p, dir) {
+    const b = state.ball;
+    const rel = (b.y - (p.y + PADDLE_H / 2)) / (PADDLE_H / 2); // -1 .. 1
+    const angle = Math.max(-1, Math.min(1, rel)) * (Math.PI / 3.2); // max ca. 56°
+    b.speed = Math.min(BALL_MAX_SPEED, b.speed * BALL_SPEEDUP);
+    b.vx = Math.cos(angle) * b.speed * dir;
+    b.vy = Math.sin(angle) * b.speed;
+    b.x = paddleX + dir * (BALL_R + 0.5);
+    spawnParticles(b.x, b.y, dir);
+    beep(dir > 0 ? 440 : 520, 0.05);
+  }
+
+  function updateBall(dt) {
+    const b = state.ball, L = state.left, R = state.right;
+
+    // In Teilschritten bewegen, damit schnelle Bälle nicht durch Schläger tunneln
+    const steps = Math.ceil((b.speed * dt) / (BALL_R));
+    const sdt = dt / steps;
+    for (let i = 0; i < steps; i++) {
+      b.x += b.vx * sdt;
+      b.y += b.vy * sdt;
+
+      if (b.y - BALL_R < 0) { b.y = BALL_R; b.vy = Math.abs(b.vy); beep(300, 0.03); }
+      else if (b.y + BALL_R > H) { b.y = H - BALL_R; b.vy = -Math.abs(b.vy); beep(300, 0.03); }
+
+      const lFace = MARGIN + PADDLE_W;
+      if (b.vx < 0 && b.x - BALL_R <= lFace && b.x - BALL_R >= MARGIN - BALL_R &&
+          b.y + BALL_R >= L.y && b.y - BALL_R <= L.y + PADDLE_H) {
+        paddleHit(lFace, L, 1);
+      }
+      const rFace = W - MARGIN - PADDLE_W;
+      if (b.vx > 0 && b.x + BALL_R >= rFace && b.x + BALL_R <= W - MARGIN + BALL_R &&
+          b.y + BALL_R >= R.y && b.y - BALL_R <= R.y + PADDLE_H) {
+        paddleHit(rFace, R, -1);
+      }
+
+      if (b.x + BALL_R < 0) { point("right"); return; }
+      if (b.x - BALL_R > W) { point("left"); return; }
+    }
+  }
+
+  function point(side) {
+    state[side].score++;
+    state.serveDir = side === "left" ? 1 : -1; // Ball geht zum Verlierer des Punktes
+    beep(side === "left" ? 880 : 220, 0.25, "sawtooth", 0.06);
+    if (state[side].score >= WIN_SCORE) {
+      state.winner = side === "left"
+        ? (state.twoPlayer ? "Spieler 1" : "Du")
+        : (state.twoPlayer ? "Spieler 2" : "Computer");
+      state.screen = "over";
+      state.ball.vx = state.ball.vy = 0;
+      setTimeout(() => beep(990, 0.4, "triangle", 0.08), 250);
+    } else {
+      resetBall();
+    }
+  }
+
+  function spawnParticles(x, y, dir) {
+    for (let i = 0; i < 12; i++) {
+      const a = (Math.random() - 0.5) * Math.PI * 0.9;
+      const s = 80 + Math.random() * 220;
+      state.particles.push({ x, y, vx: Math.cos(a) * s * dir, vy: Math.sin(a) * s, life: 0.4 + Math.random() * 0.3 });
+    }
+  }
+
+  function updateParticles(dt) {
+    for (const p of state.particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+    state.particles = state.particles.filter((p) => p.life > 0);
+  }
+
+  // ---- Zeichnen ----
+  function drawText(text, x, y, size, align = "center", color = "#e8ecf5", weight = "700") {
+    ctx.fillStyle = color;
+    ctx.font = `${weight} ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.textAlign = align;
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
+  }
+
+  function drawField() {
+    ctx.fillStyle = "#0b0f1a";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "rgba(232,236,245,0.18)";
+    for (let y = 10; y < H; y += 30) ctx.fillRect(W / 2 - 2, y, 4, 16);
+    if (state.screen === "menu") return;
+    drawText(String(state.left.score), W / 2 - 80, 60, 56, "center", "rgba(232,236,245,0.85)");
+    drawText(String(state.right.score), W / 2 + 80, 60, 56, "center", "rgba(232,236,245,0.85)");
+  }
+
+  function drawPaddles() {
+    ctx.fillStyle = "#e8ecf5";
+    ctx.fillRect(MARGIN, state.left.y, PADDLE_W, PADDLE_H);
+    ctx.fillStyle = "#4fd1c5";
+    ctx.fillRect(W - MARGIN - PADDLE_W, state.right.y, PADDLE_W, PADDLE_H);
+  }
+
+  function drawBall() {
+    const b = state.ball;
+    ctx.fillStyle = "#ffd166";
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawParticles() {
+    for (const p of state.particles) {
+      ctx.fillStyle = `rgba(255,209,102,${Math.max(0, p.life * 2)})`;
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    }
+  }
+
+  function overlay() {
+    ctx.fillStyle = "rgba(11,15,26,0.78)";
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function drawMenu() {
+    overlay();
+    drawText("PONG", W / 2, 120, 96, "center", "#4fd1c5", "800");
+    const opts = ["1 Spieler (gegen Computer)", "2 Spieler"];
+    opts.forEach((o, i) => {
+      const sel = i === state.menuIndex;
+      drawText((sel ? "▶  " : "") + o, W / 2, 240 + i * 52, 28, "center", sel ? "#ffd166" : "#e8ecf5", sel ? "700" : "500");
+    });
+    if (state.menuIndex === 0) {
+      drawText(`Schwierigkeit:  ◀  ${DIFF_KEYS[state.diffIndex].toUpperCase()}  ▶`, W / 2, 360, 22, "center", "#e8ecf5", "500");
+    }
+    drawText("Enter / Leertaste / Klick = Start", W / 2, 420, 18, "center", "rgba(232,236,245,0.7)", "500");
+    const help = state.menuIndex === 0
+      ? "Steuerung: W/S, Pfeiltasten oder Maus  ·  P = Pause"
+      : "Spieler 1: W/S   ·   Spieler 2: Pfeil hoch/runter   ·   P = Pause";
+    drawText(help, W / 2, 460, 16, "center", "rgba(232,236,245,0.55)", "500");
+    drawText(`Wer zuerst ${WIN_SCORE} Punkte hat, gewinnt.`, W / 2, 495, 16, "center", "rgba(232,236,245,0.55)", "500");
+  }
+
+  function drawPause() {
+    overlay();
+    drawText("PAUSE", W / 2, H / 2 - 30, 64);
+    drawText("P / Leertaste = weiter   ·   Q = Menü", W / 2, H / 2 + 30, 18, "center", "rgba(232,236,245,0.7)", "500");
+  }
+
+  function drawOver() {
+    overlay();
+    const txt = state.winner === "Du" ? "Du gewinnst!" : `${state.winner} gewinnt!`;
+    drawText(txt, W / 2, H / 2 - 40, 60, "center", "#ffd166", "800");
+    drawText(`${state.left.score} : ${state.right.score}`, W / 2, H / 2 + 20, 32);
+    drawText("Enter = Nochmal   ·   Esc = Menü", W / 2, H / 2 + 75, 18, "center", "rgba(232,236,245,0.7)", "500");
+  }
+
+  // ---- Hauptschleife ----
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+
+    if (state.screen === "serve" || state.screen === "play") {
+      updatePaddles(dt);
+      if (state.screen === "serve") {
+        state.serveTimer -= dt;
+        if (state.serveTimer <= 0) serve();
+      } else {
+        updateBall(dt);
+      }
+    } else if (state.screen === "menu") {
+      // Demo im Hintergrund: Ball hüpft langsam herum
+      const b = state.ball;
+      if (b.vx === 0) { b.vx = 220; b.vy = 160; }
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.x < BALL_R || b.x > W - BALL_R) b.vx *= -1;
+      if (b.y < BALL_R || b.y > H - BALL_R) b.vy *= -1;
+    }
+    updateParticles(dt);
+
+    drawField();
+    drawPaddles();
+    drawParticles();
+    drawBall();
+    if (state.screen === "serve") {
+      drawText("Bereit…", W / 2, H / 2 - 50, 22, "center", "rgba(232,236,245,0.6)", "500");
+    }
+    if (state.screen === "menu") drawMenu();
+    else if (state.screen === "pause") drawPause();
+    else if (state.screen === "over") drawOver();
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
