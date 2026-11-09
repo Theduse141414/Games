@@ -9,9 +9,10 @@ Läuft am Computer und auf dem Handy.
 
 ### Am Computer
 - **1 Spieler** gegen den Computer (Schwierigkeit: leicht / mittel / schwer)
-  – Steuerung: `W`/`S`, Pfeiltasten oder Maus
-- **2 Spieler** an einer Tastatur – Spieler 1: `W`/`S`, Spieler 2: `↑`/`↓`
-- `P` / `Esc` = Pause, `F` oder der Button oben rechts = Vollbild
+  – Steuerung: `W`/`A`/`S`/`D`, Pfeiltasten oder Maus
+- **2 Spieler** an einer Tastatur – Spieler 1: `W`/`A`/`S`/`D`, Spieler 2: Pfeiltasten
+  (hoch/runter bewegt den Schläger, links/rechts vor und zurück)
+- `P` / `Esc` = Pause, `M` = Menü, `F` = Vollbild (auch als Buttons oben rechts)
 
 ### Auf dem Handy (Touch)
 - **2 Spieler an einem Bildschirm:** Jeder Spieler steuert mit dem Finger auf seiner
@@ -22,6 +23,14 @@ Läuft am Computer und auf dem Handy.
   - **Querformat:** Spieler 1 links, Spieler 2 rechts.
 - **1 Spieler:** einfach auf dem Bildschirm wischen.
 - Menü, Pause und „Nochmal“ per Antippen; kurze Vibration bei Treffern (wenn unterstützt).
+
+### Vorschieben & Schwung
+- Die Schläger lassen sich bis zu **1/10 der Feldlänge** ins Feld schieben (die helle Zone
+  an beiden Enden). Am Handy: Finger Richtung Gegner bewegen.
+- Wer den Ball **mit Schwung** trifft – also den Schläger im Moment des Treffers nach vorne
+  bewegt –, macht ihn deutlich schneller (bis +70 %). Schwung-Bälle leuchten orange.
+  Der nächste normale Treffer nimmt das Tempo wieder heraus.
+- Der Computer holt auf „mittel“ und „schwer“ ebenfalls manchmal Schwung.
 
 Wer zuerst 7 Punkte hat, gewinnt. Der Ball wird mit jedem Treffer schneller; der
 Abprallwinkel hängt davon ab, wo er den Schläger trifft.
