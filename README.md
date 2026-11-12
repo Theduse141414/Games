@@ -34,3 +34,25 @@ Läuft am Computer und auf dem Handy.
 
 Wer zuerst 7 Punkte hat, gewinnt. Der Ball wird mit jedem Treffer schneller; der
 Abprallwinkel hängt davon ab, wo er den Schläger trifft.
+
+## Neon Overrun (Entwurf)
+
+Cyberpunk-Survivor in 2D-Pixel-Art, Top-Down – eine einzelne HTML-Datei ohne Abhängigkeiten
+(alle Sprites werden im Code erzeugt). Für Handy im Hochformat mit einer Hand gebaut.
+
+**Starten:** `neon-overrun/index.html` im Browser öffnen.
+
+### Steuerung
+- **Handy:** irgendwo auf den Bildschirm tippen und ziehen = schwebender Joystick. Waffen feuern automatisch.
+  Drei Buttons im Daumenbogen: **DASH** (kurz unverwundbar), **EMP** (Nova, lädt sich durch Kills auf), **II** (Pause).
+  Im Menü lassen sich die Buttons auf **Linkshänder** umstellen.
+- **PC:** `WASD`/Pfeile, `Leertaste` = Dash, `E` = EMP, `P`/`Esc` = Pause, `1`–`3` = Perk wählen.
+
+### Ablauf
+- Gegner lassen Datensplitter fallen → Erfahrung → **Level-Up mit Auswahl aus 3 Perks**
+  (5 Waffen, 12 Mods, jeweils mehrstufig).
+- **Alle 3 Level erscheint ein Boss** (Enforcer MK-III, Netrunner Hydra, Konzern-Titan – danach stärker im Kreis).
+  Besiegte Bosse lassen einen **Boss-Kern** fallen: Auswahl aus 3 von 9 **Spezial-Perks**
+  (z. B. Chrom-Herz, Bullet-Time, Orbital-Uplink, Klon-Drohne).
+- Gegnertypen: Drohne, Gang-Punk, Kamikaze-Bot, Spitter (schießt), Mech-Brute, seltene Elite-Varianten,
+  jede Minute ein Drohnenschwarm.
