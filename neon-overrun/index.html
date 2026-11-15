@@ -229,7 +229,8 @@ const cssPerPx = () => SCALE / DPR;
 // ---------------------------------------------------------------- Pixel-Art
 const PAL = { k: '#0b0912', g: '#2b2940', G: '#4d4a6e', h: '#8a86b0', c: '#19f0ff', C: '#0a7f9a', m: '#ff2bd6', M: '#8c1677',
   y: '#ffe14d', o: '#ff8a1f', r: '#ff3355', R: '#7a1530', s: '#f0b48a', w: '#ffffff', b: '#2f6bff', B: '#16306e',
-  p: '#9b4dff', P: '#43207a', l: '#6dff8a', L: '#1f7a3a' };
+  p: '#9b4dff', P: '#43207a', l: '#6dff8a', L: '#1f7a3a',
+  d: '#b01c95', f: '#ff7ae6', e: '#aefbff', u: '#c98a62', v: '#6a668e', a: '#ffb347', t: '#12a5b5', q: '#b0521a', z: '#b89a1e', x: '#15122a', i: '#c9a6ff', j: '#4a0d20' };
 function drawRows(rows, pal, flip, solid) {
   const h = rows.length, w = rows[0].length;
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -256,29 +257,36 @@ function mk(frames, mirror = false, palOv = null) {
   const cols = [...new Set(frames[0].join('').split('').filter(ch => ch !== '.' && ch !== 'k' && pal[ch]).map(ch => pal[ch]))];
   return { frames: out, w: out[0].w, h: out[0].h, cols };
 }
-const PTOP = ["....kkkkk...", "...kmmmmmk..", "..kmmmmmmmk.", "..kmkkkkkkk.", "..kmkcccccck", "..kmkssssk..",
-  "...kkssskk..", "..kgmmmmgk..", ".kgmmyymmgkk", ".ksgmmmmgGGk", "..kgggggk.k."];
+const PTOP = [".....kkkkkk.....", "....kmmmmmmk....", "...kmfmmmmmmk...", "...kmmmmmmmmk...", "...kmmkkkkkkk...", "...kmkeccccck...",
+  "...kdkcccccck...", "...kdkssssuk....", "....kkssuukk....", "...kkgkkkkgkk...", "..kGvgmmmmgvGk..", ".kGvkmmyymmkvGk.", ".kvgkmmmmmdkgvk.",
+  ".kskkmdmmddkksk.", "..k.kggggggk.k..", "....kgcggcgk....", "....kvgkkgvk...."];
+const PSTAND = ["....kvgk.kvgk...", "....kGGk.kGGk...", "....kkkk.kkkk..."], PWIDE = ["...kvgk..kvgk...", "..kGGk....kGGk..", "..kkkk....kkkk.."], PNARROW = [".....kvgkgvk....", ".....kGGkGGk....", ".....kkkkkkk...."];
+const DRONE_A = ["kkkk...", "khhhk..", "kkkkkk.", "..kvGkk", "..kGvGG", ".kkGGwr", "..kGvrR", "..kkGGG", "...kvvv", "...k.kc", "....kkk"];
+const DRONE_B = [".kk....", "kvhk...", "kkkkkk.", "..kvGkk", "..kGvGG", ".kkGGwr", "..kGvrR", "..kkGGG", "...kvvv", "...k.kc", "....kkk"];
+const GANG = ["....ky", "....ky", "...kyy", "..kkyz", "..ksss", "..kwks", "..ksss", "..kusu", ".kkkkk", "kRrrjr", "kvRrrj", "ksRrrr", ".kkggg", "..kgGg"];
+const BRUTE = [".....kkkk", "....kvGGG", "....kGhGG", "....kGkkk", "....kGkrr", ".kkkkGkkk", "kvGGkGGGG", "kGhGkvGoo", "kGGGkGGoy", "kvGGkvGoo", "kGGvkGGGG", "kkGkkgvvv", ".kGk.kggg", ".kGk.kGGk", "kvGk.kvG."];
+const SPIT = ["...kkk", "..kppp", ".kpipp", "kppppp", "kpPkkk", "kpkecc", "kpPkkk", ".kpPpc", ".kpPkt", "kpkPpp", "kPkkPP"];
 const SPR = {
-  player: mk([PTOP.concat(["..kgk.kgk...", "..kgk.kgk...", "..kkk.kkk..."]), PTOP.concat([".kgk...kgk..", ".kgk...kgk..", ".kkk...kkk.."])]),
-  drone: mk([["kkk..", "khhk.", ".kkGk", "..kGG", "..kGr", "..kgG", "...kk"], ["..kkk", ".khhk", ".kkGk", "..kGG", "..kGr", "..kgG", "...kk"]], true),
-  clone: mk([["kkk..", "khhk.", ".kkGk", "..kGG", "..kGr", "..kgG", "...kk"], ["..kkk", ".khhk", ".kkGk", "..kGG", "..kGr", "..kgG", "...kk"]], true, { r: '#19f0ff', G: '#0a7f9a' }),
-  ganger: mk([
-    ["...kk", "..kyy", "..kyy", ".kkss", ".ksrs", ".kkss", "kgRRR", "ksRmR", "kkRRR", ".kgg.", ".kgk.", ".kk.."],
-    ["...kk", "..kyy", "..kyy", ".kkss", ".ksrs", ".kkss", "kgRRR", "ksRmR", "kkRRR", ".kgg.", "kgk..", "kk..."]], true),
-  kamikaze: mk([["..kk", ".koo", "koyo", "kooy", "kooy", "koyo", ".koo", "..kk"], ["..kk", ".kyy", "kyww", "kywr", "kywr", "kyww", ".kyy", "..kk"]], true),
-  spitter: mk([["..kkk", ".kppp", "kpppc", "kpkkc", "kpppp", ".kppp", "..kPP", ".kPkk", ".kk.."], ["..kkk", ".kppp", "kpppc", "kpkkc", "kpppp", ".kppp", "..kPP", "..kPk", "..kk."]], true),
-  brute: mk([
-    ["...kkkk", "..kGGGG", ".kGGrrr", ".kGGGGG", "kkkGGGG", "khGkGoG", "kGGkGGG", "kGGkooo", "kkkGGGG", "..kGGGk", "..kGk..", "..kGk..", ".kkkk.."],
-    ["...kkkk", "..kGGGG", ".kGGrrr", ".kGGGGG", "kkkGGGG", "khGkGoG", "kGGkGGG", "kGGkooo", "kkkGGGG", "..kGGGk", ".kGk...", ".kGk...", "kkkk..."]], true),
-  enforcer: mk(["......kkkkkk", ".....kbbbbbb", "....kbwwbbbb", "....kbkkkkkk", "....kbkrrrrr", "....kbbkkkkk", "..kkkkbbbbbb",
-    ".kGGGkbbbbyy", "kGhGGkbbbbyy", "kGGGGkbbbbbb", "kGGGkkBbbbbb", ".kkkkGGGGGGG", "....kGGGGkkk", "....kGGGk...", "....kGGGk...",
-    "...kGGGGk...", "...kkkkkk..."], true),
-  hydra: mk([".........kkkk", ".......kkPPPP", "......kPPpppp", ".....kPpppppp", "....kPppkkkkk", "....kPpkcccck", "....kPpkcwwck",
-    "....kPppkkkkk", "....kPppppppp", ".....kPpppkkk", ".....kPppkmmm", "......kPPkkkk", "...m...kPPPPP", "..m.m...kkkkk",
-    ".m...m.m..m..", "m....m.m..m.m", ".m..m...m..m.", "..mm....m..m."], true),
-  titan: mk(["....kkkkkkkkkk", "...kGGGGGGGGGG", "..kGhhGGGGGGGG", "..kGGkkkkkkkkk", "..kGGkoooooooo", "kkkGGkkkkkkkkk",
-    "kyykGGGGGGGGGG", "kykkGGkyykkyyk", "kyykGGkkyykkyy", "kykkGGGGGGGGGG", "kyykGGGGGrrGGG", "kkkkGGGGGGGGGG", "..kGGkkkkkkkkk",
-    ".kGGk...kGGGk.", ".kGk....kGGk..", "kGGk....kGGGk.", "kkkk....kkkkk."], true),
+  player: mk([PTOP.concat(PSTAND), PTOP.concat(PWIDE), PTOP.concat(PSTAND), PTOP.concat(PNARROW)]),
+  drone: mk([DRONE_A, DRONE_B], true),
+  clone: mk([DRONE_A, DRONE_B], true, { r: '#19f0ff', R: '#0a7f9a', G: '#0a7f9a', v: '#12a5b5' }),
+  ganger: mk([GANG.concat(["..kgk.", "..kGk.", "..kkk."]), GANG.concat([".kgk..", ".kGk..", ".kkk.."])], true),
+  kamikaze: mk([["...kk", "..kwy", ".kkkk", "kqooo", "kooya", "koykk", "kooyr", "kqooo", ".kqqo", "..kkk", ".k..k"],
+    ["...kk", "..kwr", ".kkkk", "koyyy", "kyyww", "kywkk", "kyywr", "koyyy", ".kooy", "..kkk", "k..k."]], true),
+  spitter: mk([SPIT.concat([".kk.kP", "....kP", "....kk"]), SPIT.concat(["kkk.kP", "....kP", "....kk"])], true),
+  brute: mk([BRUTE.concat(["kkkk.kGG.", "....kvGG.", "....kkkk."]), BRUTE.concat(["kkkk.kGG.", "...kvGG..", "...kkkk.."])], true),
+  enforcer: mk(["..........kkkkkk", ".........kbbbbbb", "........kbBwwbbb", "........kbBBbbbb", "........kBkkkkkk", "........kBkrrrrr", "........kBkRrrrr",
+    "........kBBkkkkk", "...kkkk.kkBbbbbb", "..krrbbkkBbbbbbb", ".kBbbbbbkBbbwwww", "kBbbbbbbkBbbbbbb", "kBbvvbbbkBbbbyyb", "kBbvvbbkkBbbbyyb",
+    "kBBbbbbkkBBbbbbb", ".kBBbbk.kBBBBbbb", ".kvGGvk.kkBBBBBB", ".kGhGGk..kkkkkkk", ".kGGGGk..kvGGGvv", ".kvGGvk..kGGkkkk", ".kkkkkk..kGvGk..",
+    ".........kGGGk..", "........kBbbbk..", "........kBbbbk..", "........kBBbbk..", ".......kvGGGGk..", ".......kGGhGGk..", ".......kkkkkkk.."], true),
+  hydra: mk([".........kkkkkk", ".......kkPppppp", "......kPpppiipp", ".....kPppppppip", "....kPpppppkkkk", "....kPppkkkxxxx", "....kPpkxxecccc",
+    "....kPpkxecwwcc", "....kPpkxxecccc", "....kPppkkkxxxx", "....kPPppppkkkk", ".....kPppppppkm", ".....kPPpppkkkk", "......kPppkmfmf",
+    "......kPPpkmmmm", ".......kPPpkkkk", "..km...kkPPpppp", ".kmk.km..kkPPPP", "kmk.kmk.km.kkkk", "km..km..kmk.km.", "kmk.kmk..km.kmk",
+    ".kmk.kmk.kmk.km", "..km..km..km.km", "..kmk.kmk.kmk.k", "...kf..kf..kf..", "...k...k...k..."], true),
+  titan: mk(["......kkkkkkkkkkkk", ".....kvGGGGGGGGGGG", "....kvGhhGGGGGGGGG", "....kGGGGGkkkkkkkk", "....kGGGGkoaoooooo", "....kGGGGkqooooooo",
+    "..kkkGGGGGkkkkkkkk", ".kyzkvGGGGGGGGGGGG", "kyzykGGkyykyykyyky", "kzyzkGGkkyykyykyyk", "kyzykvGGGGGGGGGGGG", "kzyzkGGGvkkkkvGGGG", "kyzykGGGkrrrrkGGrr",
+    "kzkkkvGGkRRRRkGGrw", "kkGGkGGGvkkkkvGGGG", ".kvGkkGGGGGGGGGGGG", ".kGGk.kkkkkkkkkkkk", ".kvGk...kvGGGk....", ".kGGk...kGGhGk....", ".kkkk..kvGGGGk....",
+    ".kook..kGGkkkk....", ".kkkk.kvGGk.......", "......kGGGk.......", ".....kvGGGGk......", ".....kGhGGGk......", ".....kkkkkkk......"], true),
   core: mk(["....k....", "...kyk...", "..kywyk..", ".kywyyyk.", "kyyyoyyyk", ".kyyyyyk.", "..kyyyk..", "...kyk...", "....k...."]),
   med: mk([".kkkkk.", "kwwrwwk", "kwwrwwk", "krrrrrk", "kwwrwwk", "kwwrwwk", ".kkkkk."]),
   mag: mk([".kkkkk.", "krrkbbk", "krk.kbk", "krk.kbk", "kwk.kwk", "kkk.kkk"]),
@@ -875,6 +883,7 @@ function ensureAudio() {
   if (AC && AC.state === 'suspended') AC.resume();
 }
 const SFX = {
+  gate: { t: 'sawtooth', f0: 70, f1: 620, d: 1.1, v: .07, gap: .5 },
   shoot: { t: 'square', f0: 900, f1: 500, d: .05, v: .025, gap: .07 }, hit: { t: 'square', f0: 300, f1: 120, d: .04, v: .025, gap: .04 },
   kill: { t: 'triangle', f0: 500, f1: 90, d: .09, v: .05, gap: .05 }, gem: { t: 'sine', f0: 1300, f1: 1900, d: .05, v: .03, gap: .035 },
   hurt: { t: 'sawtooth', f0: 220, f1: 70, d: .22, v: .09, gap: .1 }, dash: { t: 'sine', f0: 280, f1: 1000, d: .13, v: .07, gap: .05 },
@@ -941,9 +950,9 @@ const ET = {
   brute: { spr: 'brute', hp: 95, spd: 19, dmg: 16, r: 7, xp: 1, kbRes: .85 },
 };
 const BOSSES = [
-  { id: 'enforcer', name: 'ENFORCER MK-III', hp: 280, r: 10, spd: 30, dmg: 20 },
-  { id: 'hydra', name: 'NETRUNNER HYDRA', hp: 620, r: 11, spd: 36, dmg: 18 },
-  { id: 'titan', name: 'KONZERN-TITAN', hp: 1050, r: 12, spd: 17, dmg: 26 },
+  { id: 'enforcer', name: 'ENFORCER MK-III', hp: 280, r: 12, spd: 30, dmg: 20 },
+  { id: 'hydra', name: 'NETRUNNER HYDRA', hp: 620, r: 12, spd: 36, dmg: 18 },
+  { id: 'titan', name: 'KONZERN-TITAN', hp: 1050, r: 15, spd: 17, dmg: 26 },
 ];
 
 // ---------------------------------------------------------------- Zustand
@@ -955,7 +964,7 @@ function newGame() {
     bossWarn: 0, bossCount: 0, dashId: 0, timers: { pistol: 0.3, tesla: 1, mines: 1, rockets: 1.5, orbital: 3, clone: 1, aura: 0 },
     bladeAng: 0, hint: 4.5 };
   P = { x: 0, y: 0, r: 5, hp: 100, maxHp: 100, speed: 64, face: 1, anim: 0, inv: 0, dashT: 0, dashCd: 0, dashCharges: 1, dashMax: 1,
-    dashDir: { x: 1, y: 0 }, lastDir: { x: 1, y: 0 }, lvl: 1, xp: 0, need: xpNeed(1), kills: 0, bossKills: 0, nova: 0, revived: false,
+    w: 14, h: 14, dashDir: { x: 1, y: 0 }, lastDir: { x: 1, y: 0 }, lvl: 1, xp: 0, need: xpNeed(1), kills: 0, bossKills: 0, nova: 0, revived: false,
     stats: { dmg: 1, rate: 1, multi: 0, pierce: 0, regen: 0, speed: 1, magnet: 26, xp: 1, crit: .05, area: 1, dashCd: 1 },
     perks: { pistol: 1 }, legend: {}, clone: { x: 0, y: 0 } };
   enemies = []; bullets = []; ebullets = []; pickups = []; parts = []; texts = []; mines = []; rockets = []; bolts = []; fx = []; boss = null; decals = [];
@@ -1119,6 +1128,7 @@ function addXp(v) {
 
 // ---------------------------------------------------------------- Spieleraktionen
 function doDash() {
+  if (S.intro > 0) return;
   if (S.state !== 'play' || P.dashCharges < 1 || P.dashT > 0) return;
   const mv = moveVec(); let dx = mv.x, dy = mv.y;
   if (!dx && !dy) { dx = P.lastDir.x; dy = P.lastDir.y; }
@@ -1128,6 +1138,7 @@ function doDash() {
   if (P.legend.bullettime) S.slowT = 2.5;
 }
 function doNova(free = false) {
+  if (S.intro > 0) return;
   if (S.state !== 'play' || (!free && P.nova < 100)) return;
   P.nova = 0;
   fx.push({ type: 'nova', x: P.x, y: P.y, t: 0, tmax: .45, R: 150 * P.stats.area, hit: new Set() });
@@ -1313,7 +1324,18 @@ function firePistol(x, y, tgt, lvl) {
 }
 
 // ---------------------------------------------------------------- Update
+const INTRO = 2.6;
 function update(dt) {
+  if (S.intro > 0) { // Start-Animation: Spieler tritt aus dem Lasertor
+    const t0 = INTRO - S.intro; S.intro -= dt; const t = INTRO - S.intro, g = S.gate;
+    if (t0 < .7 && t >= .7) { sfx('pick'); addPart(g.x, g.y - 10, '#6dff8a', 18, 90, .5, 1); shake(2); }
+    if (t > 1.25 && t < 1.95) { P.y += 24 * dt; P.anim += dt * 9; }
+    if (t > .3 && t < 2.2 && Math.random() < .5) parts.push({ x: g.x + rnd(-11, 11), y: g.y - rnd(0, 26), vx: 0, vy: rnd(-25, -8), life: .5, max: .5, col: Math.random() < .3 ? '#ffffff' : '#6dff8a', sz: 1, nd: true });
+    if (S.intro <= 0) { addPart(g.x, g.y - 4, '#6dff8a', 14, 70, .4, 1); P.inv = .6; }
+    for (const p of parts) { p.x += p.vx * dt; p.y += p.vy * dt; if (!p.nd) { p.vx *= .9; p.vy *= .9; } p.life -= dt; }
+    parts = parts.filter(p => p.life > 0);
+    return;
+  }
   S.t += dt;
   const slow = S.slowT > 0 ? .35 : 1; S.slowT = Math.max(0, S.slowT - dt);
   const edt = dt * slow;
@@ -1498,6 +1520,7 @@ function render(now) {
     for (const sg of b.signs) if (onScreen(sg.x, sg.y, 50)) L(sg.x + 12, sg.y + 4, 40, .6);
   }
   if (S.state !== 'menu') L(P.x, P.y, 64, .85);
+  if (S.intro > 0 && S.state !== 'menu') L(S.gate.x, S.gate.y - 10, 80, Math.min(1, (INTRO - S.intro) / .5, S.intro / .45));
   if (boss) L(boss.x, boss.y, 56, .8);
   for (const f of fx) { const k = Math.min(1, f.t / f.tmax); if (f.type === 'ring' || f.type === 'flash') L(f.x, f.y, f.r * 2.2, 1 - k); else if (f.type === 'nova') L(f.x, f.y, 96, 1 - k); }
   for (const g of pickups) if (g.kind !== 'xp' && onScreen(g.x, g.y, 30)) L(g.x, g.y, 24, .7);
@@ -1525,6 +1548,7 @@ function render(now) {
     ctx.fillStyle = '#0b0912'; ctx.fillRect(X - 1, Y - 2, w + 2, 11); ctx.fillStyle = sg.col; ctx.globalAlpha = .6;
     ctx.fillRect(X - 1, Y - 2, w + 2, 1); ctx.fillRect(X - 1, Y + 8, w + 2, 1); ctx.globalAlpha = 1; ctx.drawImage(img, X + 1, Y); }
   // Boden-Effekte
+  if (S.intro > 0 && S.state !== 'menu') drawGate(tsec);
   for (const m of mines) { const armed = m.t >= m.arm; spriteAt(SPR.mine, 0, m.x, m.y, false, armed && Math.sin(m.t * 12) > .7); }
   for (const f of fx) if (f.type === 'strike') {
     const k = f.t / f.tmax; ctx.strokeStyle = `rgba(255,51,85,${.4 + .5 * k})`; ctx.lineWidth = 1;
@@ -1544,14 +1568,14 @@ function render(now) {
   // Figuren + Gebäude/Props (nach y sortiert = 3/4-Tiefe)
   const list = [];
   for (const e of enemies) if (!e.fly && !(e.boss && e.def.id === 'hydra') && onScreen(e.x, e.y, 30)) list.push([e.y, e]);
-  if (S.state !== 'menu') list.push([P.y, P]);
+  if (S.state !== 'menu' && !(S.intro > 0 && INTRO - S.intro < .7)) list.push([P.y, P]);
   for (const b of vis) for (const o of b.props) if (!o.dead && o.x + o.ox < camX + GW && o.x + o.ox + o.img.width > camX && o.y + o.oy < camY + GH && o.y + o.oy + o.img.height > camY) list.push([o.sortY, null, o]);
   list.sort((a, b) => a[0] - b[0]);
   for (const it of list) { if (it[2]) drawProp(it[2], tsec); else drawEntity(it[1]); }
   // Flug-Ebene: Drohnen und schwebende Bosse über den Dächern
   for (const e of enemies) if ((e.fly || (e.boss && e.def.id === 'hydra')) && onScreen(e.x, e.y, 30)) drawEntity(e);
   if (P.legend.clone) { spriteAt(SPR.clone, (S.t * 10) | 0, P.clone.x, P.clone.y + Math.round(Math.sin(S.t * 4)), false, false); }
-  // Über allem: Kabel mit Lichtern, Kranarme, Flugverkehr
+  // Über allem: Kabel mit Lichtern, Kranarme
   for (const b of vis) {
     for (const [x1, y1, x2, y2, col] of b.cables) { if (!onScreen((x1 + x2) / 2, (y1 + y2) / 2, 90)) continue;
       ctx.strokeStyle = '#0b0912'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x1 - camX, y1 - camY); ctx.quadraticCurveTo((x1 + x2) / 2 - camX, (y1 + y2) / 2 + 7 - camY, x2 - camX, y2 - camY); ctx.stroke();
@@ -1567,7 +1591,6 @@ function render(now) {
       const hx = c.x + Math.cos(a) * c.len * .8, hy = c.y - 10 + Math.sin(a) * c.len * .64; ctx.fillStyle = '#0b0912'; ctx.fillRect(Math.round(hx - camX), Math.round(hy - camY), 1, 9); ctx.fillRect(Math.round(hx - 1 - camX), Math.round(hy + 9 - camY), 3, 2);
       if (Math.sin(tsec * 5) > 0) { ctx.globalCompositeOperation = 'lighter'; glowAt('rgba(255,51,85,0.9)', 6, ex, ey, 1); ctx.globalCompositeOperation = 'source-over'; } }
   }
-  drawTraffic(tsec);
   // Klingen
   const bl = P.perks.blades || 0;
   if (bl) { const n = bl + 1, R = 26 * P.stats.area; ctx.globalCompositeOperation = 'lighter';
@@ -1590,7 +1613,7 @@ function render(now) {
   ctx.fillStyle = '#ffd9a8'; for (const r of rockets) ctx.fillRect(Math.round(r.x - 1 - camX), Math.round(r.y - 1 - camY), 3, 2);
   // Partikel
   for (const p of parts) {
-    if (p.ghost) { spriteAt(SPR.player, 0, p.x, p.y, p.face < 0, true, p.life / p.max * .4); continue; }
+    if (p.ghost) { spriteAt(SPR.player, 0, p.x, p.y - 3, p.face < 0, true, p.life / p.max * .4); continue; }
     ctx.globalAlpha = Math.min(1, p.life / p.max * 1.5) * (p.a || 1); ctx.fillStyle = p.col; const s = p.sz || 1;
     ctx.fillRect(Math.round(p.x - camX), Math.round(p.y - camY), s, s);
   }
@@ -1641,19 +1664,17 @@ function render(now) {
     ctx.fillStyle = 'rgba(25,240,255,.6)'; ctx.beginPath(); ctx.arc(bx + (d ? dx / d * m : 0), by + (d ? dy / d * m : 0), R * .4, 0, TAU); ctx.fill();
   }
 }
-// Flugverkehr: Hover-Autos ziehen hoch über den Straßen vorbei (nur Kulisse)
-const traffic = [];
-function drawTraffic(tsec) {
-  while (traffic.length < 3) { const vert = Math.random() < .5, dir = Math.random() < .5 ? 1 : -1, C = makeCar(vert, Math.random);
-    const lane = Math.floor(((vert ? camX : camY) + Math.random() * (vert ? GW : GH)) / BP) * BP + 14 + Math.random() * 20;
-    traffic.push({ vert, dir, img: C.img, col: C.col, v: (110 + Math.random() * 110) * dir, p: (vert ? camY : camX) + (dir > 0 ? -60 - Math.random() * 500 : (vert ? GH : GW) + 60 + Math.random() * 500), lane }); }
-  for (let i = traffic.length - 1; i >= 0; i--) { const t = traffic[i]; t.p += t.v / 60;
-    const x = t.vert ? t.lane : t.p, y = t.vert ? t.p : t.lane, lo = t.vert ? camY : camX, hi = lo + (t.vert ? GH : GW);
-    if ((t.dir > 0 && t.p > hi + 80) || (t.dir < 0 && t.p < lo - 80) || Math.abs(t.lane - (t.vert ? camX + GW / 2 : camY + GH / 2)) > 700) { traffic.splice(i, 1); continue; }
-    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(Math.round(x + 12 - camX), Math.round(y + 22 - camY), t.img.width, t.img.height - 3);
-    ctx.globalCompositeOperation = 'lighter'; glowAt(rgba(t.col, .5), 16, x + t.img.width / 2, y + t.img.height / 2, .9);
-    ctx.fillStyle = rgba(t.col, .35); if (t.vert) ctx.fillRect(Math.round(x + 5 - camX), Math.round(y + (t.dir > 0 ? -26 : t.img.height) - camY), 2, 26); else ctx.fillRect(Math.round(x + (t.dir > 0 ? -26 : t.img.width) - camX), Math.round(y + 5 - camY), 26, 2);
-    ctx.globalCompositeOperation = 'source-over'; ctx.drawImage(t.img, Math.round(x - camX), Math.round(y - camY)); }
+// Grünes Lasertor der Start-Animation
+function drawGate(tsec) {
+  const t = INTRO - S.intro, k = Math.min(1, t / .5, S.intro / .45), g = S.gate, X = Math.round(g.x - camX), Y = Math.round(g.y + 4 - camY), H = Math.round(34 * k), W = 13;
+  ctx.globalCompositeOperation = 'lighter'; glowAt('rgba(60,255,120,0.55)', 48, g.x, g.y - 12, k);
+  if (H > 1) { ctx.fillStyle = 'rgba(60,255,120,0.16)'; ctx.fillRect(X - W, Y - H, W * 2, H);
+    for (let i = 0; i <= 6; i++) { ctx.fillStyle = `rgba(130,255,170,${.35 + .35 * Math.sin(tsec * 31 + i * 2.1)})`; ctx.fillRect(X - W + 1 + i * 4, Y - H, 1, H); }
+    ctx.fillStyle = 'rgba(220,255,230,0.8)'; ctx.fillRect(X - W, Y - H + ((tsec * 60) % H | 0), W * 2, 1); }
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#d8ffe4'; ctx.fillRect(X - W, Y - H - 1, W * 2, 1); ctx.fillRect(X - W, Y, W * 2, 1);
+  for (const sx of [-W - 3, W]) { ctx.fillStyle = '#0b0912'; ctx.fillRect(X + sx, Y - H - 3, 3, H + 5); ctx.fillStyle = '#2b2940'; ctx.fillRect(X + sx + 1, Y - H - 2, 1, H + 3);
+    ctx.fillStyle = '#6dff8a'; ctx.fillRect(X + sx, Y - H - 3, 3, 1); ctx.fillRect(X + sx + 1, Y - (H >> 1), 1, 2); }
 }
 function drawEntity(e) {
   const w = Math.round(e.w * .6); ctx.fillStyle = 'rgba(0,0,0,.4)';
@@ -1690,7 +1711,10 @@ function drawPlayer() {
   const blink = P.inv > 0 && P.dashT <= 0 && Math.sin(S.t * 50) > 0;
   ctx.globalCompositeOperation = 'lighter'; glowAt('rgba(25,240,255,0.25)', 14, P.x, P.y - 3, 1); ctx.globalCompositeOperation = 'source-over';
   const moving = joy.id !== null || keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight;
-  spriteAt(SPR.player, moving ? (P.anim | 0) % 2 : 0, P.x, P.y, P.face < 0, blink);
+  if (S.intro > 0) { const t = INTRO - S.intro; if (t < .7) return; // erscheint im Lasertor
+    if (t < 1.2) { ctx.globalCompositeOperation = 'lighter'; glowAt('rgba(120,255,160,0.8)', 16, P.x, P.y - 3, 1.2 - t); ctx.globalCompositeOperation = 'source-over';
+      spriteAt(SPR.player, 0, P.x, P.y - 3, false, true, (t - .7) / .5); if (t > .95) spriteAt(SPR.player, 0, P.x, P.y - 3, false, false, (t - .95) / .25); return; } }
+  spriteAt(SPR.player, moving || S.intro > 0 ? (P.anim | 0) % 4 : 0, P.x, P.y - 3, P.face < 0, blink);
   if (P.aim !== undefined) { // Waffe zeigt aufs Ziel
     const gx = P.x - camX, gy = P.y + 2 - camY, ca = Math.cos(P.aim), sa = Math.sin(P.aim);
     ctx.strokeStyle = '#0b0912'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(gx + ca * 2, gy + sa * 2); ctx.lineTo(gx + ca * 8, gy + sa * 8); ctx.stroke();
@@ -1706,8 +1730,8 @@ function drawBoss(b) {
   const white = b.flash > 0 || (b.def.id === 'enforcer' && b.st === 'aim' && Math.sin(S.t * 30) > 0);
   spriteAt(b.spr, 0, b.x, b.y + bob, P.x < b.x, white, b.alpha);
   if (b.def.id === 'enforcer') { const on = Math.sin(S.t * 14) > 0; // Blaulicht
-    ctx.fillStyle = on ? '#ff3355' : '#2f6bff'; ctx.fillRect(Math.round(b.x - 8 - camX), Math.round(b.y - b.h / 2 + 6 - camY), 2, 2);
-    ctx.fillStyle = on ? '#2f6bff' : '#ff3355'; ctx.fillRect(Math.round(b.x + 6 - camX), Math.round(b.y - b.h / 2 + 6 - camY), 2, 2); }
+    ctx.fillStyle = on ? '#ff3355' : '#2f6bff'; ctx.fillRect(Math.round(b.x - 13 - camX), Math.round(b.y - b.h / 2 + 9 - camY), 2, 1);
+    ctx.fillStyle = on ? '#2f6bff' : '#ff3355'; ctx.fillRect(Math.round(b.x + 11 - camX), Math.round(b.y - b.h / 2 + 9 - camY), 2, 1); }
 }
 
 // ---------------------------------------------------------------- HUD
@@ -1803,6 +1827,7 @@ function showBest() {
 }
 function startGame() {
   ensureAudio(); newGame();
+  S.intro = INTRO; S.gate = { x: 0, y: -8 }; P.y = -8; sfx('gate');
   ['menu', 'over', 'pause', 'levelup'].forEach(id => $(id).hidden = true);
   $('hud').hidden = false; $('controls').hidden = false; $('bossBar').hidden = true;
   showBanner(matchMedia('(pointer: coarse)').matches ? 'Irgendwo ziehen zum Laufen' : 'WASD zum Laufen · Leertaste = Dash', 'info', 4.5);
@@ -1851,6 +1876,7 @@ requestAnimationFrame(frame);
 
 // Test-Hook (nur für automatisierte Tests)
 window.__dist = (bx, by) => getBlock(bx, by).type;
+window.__SPR = SPR;
 window.__NO = { get S() { return S; }, get P() { return P; }, get enemies() { return enemies; }, addXp, spawnBoss, startGame };
 </script>
 </body>
