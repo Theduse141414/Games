@@ -15,7 +15,7 @@
   /* Layout: Vollbild-Canvas, HUD oben, Einhand-Buttons im Daumenbogen unten, Overlays als Terminal-Panels */
   :root {
     --bg: #07060d; --ink: #ece8ff; --dim: #8f88b8; --line: #2b2450; --panel: rgba(15, 11, 31, 0.94);
-    --cyan: #19f0ff; --pink: #ff2bd6; --gold: #ffd23f; --red: #ff3355; --lime: #6dff8a;
+    --cyan: #19f0ff; --pink: #ff2bd6; --gold: #ffd23f; --red: #ff3355; --lime: #6dff8a; --orange: #ff8a1f;
     --display: "Press Start 2P", ui-monospace, "Courier New", monospace;
     --body: "VT323", ui-monospace, "Courier New", monospace;
     color-scheme: dark;
@@ -111,9 +111,11 @@
   .card:nth-child(2) { animation-delay: .06s; } .card:nth-child(3) { animation-delay: .12s; }
   .card:active { transform: translate(2px, 2px); }
   .card:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-  .card.mod { --c: var(--pink); } .card.legend { --c: var(--gold); }
-  .card .ic { grid-row: span 3; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
-    font-family: var(--display); font-size: 11px; color: #000; background: var(--c); box-shadow: inset -3px -3px 0 rgba(0,0,0,.35); }
+  .card.cat-w { --c: var(--orange); } .card.cat-hp { --c: var(--lime); } .card.cat-sup { --c: var(--cyan); } .card.legend { --c: var(--gold); }
+  .card .ic { grid-row: span 4; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--c) 18%, #0b0912); border: 2px solid var(--c); box-shadow: inset -3px -3px 0 rgba(0,0,0,.35), 0 0 10px color-mix(in srgb, var(--c) 40%, transparent); }
+  .card .ic img { width: 36px; height: 36px; object-fit: contain; image-rendering: pixelated; }
+  .card .sl { font-family: var(--display); font-size: 8px; line-height: 1.6; color: var(--c); font-variant-numeric: tabular-nums; }
   .card .tag { font-family: var(--display); font-size: 7px; color: var(--c); letter-spacing: 1px; }
   .card .nm { font-family: var(--display); font-size: 11px; line-height: 1.4; }
   .card .ds { font-size: 20px; line-height: 1; color: #cfc9f0; }
@@ -911,24 +913,26 @@ const vibrate = ms => { try { navigator.vibrate && navigator.vibrate(ms); } catc
 
 // ---------------------------------------------------------------- Perks
 const PERKS = [
-  { id: 'pistol', type: 'w', code: 'SP', name: 'Smart-Pistole', max: 6, desc: l => l === 3 ? 'Kugeln durchschlagen +1 Gegner.' : l === 5 ? '+1 Projektil pro Salve.' : '+Schaden und schnellere Salven.' },
-  { id: 'blades', type: 'w', code: 'MK', name: 'Mono-Klingen', max: 5, desc: l => `${l + 1} Monofilament-Klingen kreisen um dich.` },
-  { id: 'tesla', type: 'w', code: 'TK', name: 'Tesla-Kette', max: 5, desc: l => `Blitz springt zwischen ${2 + l} Gegnern.` },
-  { id: 'mines', type: 'w', code: 'NM', name: 'Nano-Minen', max: 5, desc: l => `Legt Minen mit Flächenschaden (max. ${4 + l * 2}).` },
-  { id: 'rockets', type: 'w', code: 'MR', name: 'Mikro-Raketen', max: 5, desc: l => `${1 + (l >> 1)} zielsuchende Rakete(n) pro Salve.` },
-  { id: 'dmg', type: 'p', code: 'HS', name: 'Hohlspitz-Munition', max: 5, desc: () => '+20 % Schaden für alle Waffen.' },
-  { id: 'rate', type: 'p', code: 'RB', name: 'Reflex-Booster', max: 5, desc: () => '+15 % Feuerrate.' },
-  { id: 'multi', type: 'p', code: 'SL', name: 'Splitter-Lauf', max: 3, desc: () => '+1 Projektil für Pistole und Raketen.' },
-  { id: 'pierce', type: 'p', code: 'PB', name: 'Panzerbrecher', max: 3, desc: () => 'Kugeln durchschlagen +1 Gegner.' },
-  { id: 'hp', type: 'p', code: 'TP', name: 'Titan-Plating', max: 5, desc: () => '+25 Max-HP und heilt 25 HP.' },
-  { id: 'regen', type: 'p', code: 'NR', name: 'Nano-Reparatur', max: 5, desc: () => '+0,5 HP pro Sekunde.' },
-  { id: 'speed', type: 'p', code: 'KS', name: 'Kinetik-Servos', max: 4, desc: () => '+10 % Lauftempo.' },
-  { id: 'magnet', type: 'p', code: 'MI', name: 'Magnet-Implantat', max: 6, desc: () => '+40 % Aufheberadius für Daten, Medikits und Items.' },
-  { id: 'xp', type: 'p', code: 'DK', name: 'Daten-Kompressor', max: 4, desc: () => '+15 % Erfahrung.' },
-  { id: 'crit', type: 'p', code: 'ZO', name: 'Ziel-Optik', max: 4, desc: () => '+7 % Chance auf doppelten Schaden.' },
-  { id: 'area', type: 'p', code: 'PV', name: 'Plasma-Verstärker', max: 4, desc: () => '+15 % Fläche (Klingen, Minen, Explosionen).' },
-  { id: 'cool', type: 'p', code: 'SK', name: 'Sprint-Kühlung', max: 3, desc: () => '−18 % Dash-Abklingzeit.' },
+  { id: 'pistol', cat: 'w', type: 'w', code: 'SP', name: 'Smart-Pistole', max: 6, desc: l => l === 3 ? 'Kugeln durchschlagen +1 Gegner.' : l === 5 ? '+1 Projektil pro Salve.' : '+Schaden und schnellere Salven.' },
+  { id: 'blades', cat: 'w', type: 'w', code: 'MK', name: 'Mono-Klingen', max: 5, desc: l => `${l + 1} Monofilament-Klingen kreisen um dich.` },
+  { id: 'tesla', cat: 'w', type: 'w', code: 'TK', name: 'Tesla-Kette', max: 5, desc: l => `Blitz springt zwischen ${2 + l} Gegnern.` },
+  { id: 'mines', cat: 'w', type: 'w', code: 'NM', name: 'Nano-Minen', max: 5, desc: l => `Legt Minen mit Flächenschaden (max. ${4 + l * 2}).` },
+  { id: 'rockets', cat: 'w', type: 'w', code: 'MR', name: 'Mikro-Raketen', max: 5, desc: l => `${1 + (l >> 1)} zielsuchende Rakete(n) pro Salve.` },
+  { id: 'dmg', cat: 'w', type: 'p', code: 'HS', name: 'Hohlspitz-Munition', max: 5, desc: () => '+25 % Schaden für alle Waffen.' },
+  { id: 'rate', cat: 'w', type: 'p', code: 'RB', name: 'Reflex-Booster', max: 5, desc: () => '+15 % Feuerrate.' },
+  { id: 'multi', cat: 'w', type: 'p', code: 'SL', name: 'Splitter-Lauf', max: 3, desc: () => '+1 Projektil für Pistole und Raketen.' },
+  { id: 'pierce', cat: 'w', type: 'p', code: 'PB', name: 'Panzerbrecher', max: 3, desc: () => 'Kugeln durchschlagen +1 Gegner.' },
+  { id: 'hp', cat: 'hp', type: 'p', code: 'TP', name: 'Titan-Plating', max: 5, desc: () => '+25 Max-HP und heilt 25 HP.' },
+  { id: 'regen', cat: 'hp', type: 'p', code: 'NR', name: 'Nano-Reparatur', max: 5, desc: () => '+0,5 HP pro Sekunde.' },
+  { id: 'speed', cat: 'sup', type: 'p', code: 'KS', name: 'Kinetik-Servos', max: 4, desc: () => '+10 % Lauftempo.' },
+  { id: 'magnet', cat: 'sup', type: 'p', code: 'MI', name: 'Magnet-Implantat', max: 6, desc: () => '+40 % Aufheberadius für Daten, Medikits und Items.' },
+  { id: 'xp', cat: 'sup', type: 'p', code: 'DK', name: 'Daten-Kompressor', max: 4, desc: () => '+15 % Erfahrung.' },
+  { id: 'crit', cat: 'w', type: 'p', code: 'ZO', name: 'Ziel-Optik', max: 4, desc: () => '+7 % Chance auf doppelten Schaden.' },
+  { id: 'area', cat: 'w', type: 'p', code: 'PV', name: 'Plasma-Verstärker', max: 4, desc: () => '+15 % Fläche (Klingen, Minen, Explosionen).' },
+  { id: 'cool', cat: 'sup', type: 'p', code: 'SK', name: 'Sprint-Kühlung', max: 3, desc: () => '−18 % Dash-Abklingzeit.' },
 ];
+// Grundschaden der Waffen pro Stufe (wird auch im Auswahlbildschirm angezeigt)
+const WDMG = { pistol: l => 9 + l * 4, blades: l => 8 + l * 4, tesla: l => 14 + l * 6, mines: l => 30 + l * 14, rockets: l => 28 + l * 11 };
 const LEGENDS = [
   { id: 'chrome', code: 'CH', name: 'Chrom-Herz', desc: 'Stirbst du, startest du einmalig neu mit 60 % HP und einer EMP-Nova.' },
   { id: 'bullettime', code: 'BT', name: 'Bullet-Time', desc: 'Nach jedem Dash sind Gegner und Projektile 2,5 s lang stark verlangsamt.' },
@@ -1152,15 +1156,15 @@ function pickType(t) {
   for (const [k, v] of w) { r -= v; if (r <= 0) return k; } return 'drone';
 }
 function spawnEnemy(type, x, y) {
-  if (enemies.length >= 320) return null;
+  if (enemies.length >= 220) return null;
   const d = ET[type];
   if (x === undefined) { const dist = Math.hypot(GW, GH) / 2 + 16;
     for (let k = 0; k < 8; k++) { const a = rnd(TAU); x = P.x + Math.cos(a) * dist; y = P.y + Math.sin(a) * dist; if (d.fly || isFree(x, y, d.r + 1)) break; } }
-  const tm = 1 + S.t / 60 * .45 + (P.lvl - 1) * .035;
+  const tm = 1 + S.t / 60 * .3 + (P.lvl - 1) * .02;
   const elite = Math.random() < .03 && S.t > 30;
   const spr = SPR[d.spr];
   const e = { id: nextId++, type, x, y, r: d.r * (elite ? 1.3 : 1), hp: d.hp * tm * (elite ? 5 : 1), maxHp: 0, spd: d.spd * rnd(.9, 1.1),
-    dmg: d.dmg * (1 + S.t / 240 * .35), xpv: [1, 1, 2, 3, 6][Object.keys(ET).indexOf(type)], spr, w: spr.w, h: spr.h,
+    dmg: d.dmg * (1 + S.t / 300 * .3), xpv: [1, 1, 2, 3, 6][Object.keys(ET).indexOf(type)], spr, w: spr.w, h: spr.h,
     kbx: 0, kby: 0, kbRes: d.kbRes || 0, flash: 0, anim: rnd(4), elite, fly: d.fly, ranged: d.ranged, explode: d.explode,
     shootT: rnd(1, 2.5), fuse: -1, bladeT: 0, dashHit: 0 };
   e.maxHp = e.hp; enemies.push(e); return e;
@@ -1168,13 +1172,13 @@ function spawnEnemy(type, x, y) {
 function spawner(dt) {
   S.spawnT -= dt;
   if (S.spawnT <= 0) {
-    S.spawnT = Math.max(.3, 1.1 - S.t * .0027) * (boss ? 2 : 1);
-    const n = 1 + Math.floor(S.t / 100);
+    S.spawnT = Math.max(.5, 1.25 - S.t * .0016) * (boss ? 2 : 1);
+    const n = 1 + Math.floor(S.t / 160);
     for (let i = 0; i < n; i++) spawnEnemy(pickType(S.t));
   }
   S.hordeT -= dt;
   if (S.hordeT <= 0 && !boss) { // Drohnenschwarm kreist dich ein
-    S.hordeT = 75; const n = 16 + Math.floor(S.t / 40), dist = Math.hypot(GW, GH) / 2 + 10;
+    S.hordeT = 90; const n = 12 + Math.floor(S.t / 50), dist = Math.hypot(GW, GH) / 2 + 10;
     for (let i = 0; i < n; i++) { const a = i / n * TAU; spawnEnemy(S.t > 120 ? 'ganger' : 'drone', P.x + Math.cos(a) * dist, P.y + Math.sin(a) * dist); }
     showBanner('DROHNENSCHWARM!', 'warn', 1.6);
   }
@@ -1212,12 +1216,14 @@ function updateBoss(b, dt) {
   if (id === 'enforcer') {
     if (b.st === 'walk') { b.x += ch.x * b.spd * dt; b.y += ch.y * b.spd * dt; if (b.stT <= 0) { b.st = 'aim'; b.stT = .75; b.a = ang; } }
     else if (b.st === 'stun') { if (Math.random() < .3) addPart(b.x + rnd(-8, 8), b.y - 12, '#ffe14d', 1, 20, .3); if (b.stT <= 0) { b.st = 'walk'; b.stT = 2.2; } }
-    else if (b.st === 'aim') { b.a = ang; if (b.stT <= 0) { b.st = 'charge'; b.stT = .6; b.cdx = Math.cos(b.a); b.cdy = Math.sin(b.a); sfx('dash'); } }
+    else if (b.st === 'aim') { b.a = ang; if (b.stT <= 0) { b.st = 'charge'; b.stT = .6; b.chT = 0; b.cdx = Math.cos(b.a); b.cdy = Math.sin(b.a); sfx('dash'); } }
     else if (b.st === 'charge') {
-      b.x += b.cdx * 240 * dt; b.y += b.cdy * 240 * dt; addPart(b.x, b.y + 6, '#2f6bff', 1, 20, .3);
-      if (collideObs(b, b.r)) { b.st = 'stun'; b.stT = 1.4; shake(6); noise(.5, .15, 400); ring(b.x, b.y, 24, '#ffe14d', .35);
+      b.x += b.cdx * 240 * dt; b.y += b.cdy * 240 * dt; addPart(b.x, b.y + 6, '#2f6bff', 1, 20, .3); b.chT += dt;
+      const mx = b.x, my = b.y; collideObs(b, b.r);
+      const back = (b.x - mx) * b.cdx + (b.y - my) * b.cdy; // wie weit die Wand ihn zurückschiebt
+      if (b.chT > .15 && back < -240 * dt * .6) { b.st = 'stun'; b.stT = 1.4; shake(6); noise(.5, .15, 400); ring(b.x, b.y, 24, '#ffe14d', .35);
         showBanner('ENFORCER BENOMMEN!', 'good', 1); }
-      else if (b.stT <= 0) { b.st = 'walk'; b.stT = 2.6; const n = 14 + b.tier * 4; const rings = enr > 1 ? 2 : 1;
+      else if (b.stT <= 0) { b.st = 'walk'; b.stT = 2.6; const n = 10 + b.tier * 3; const rings = enr > 1 && b.tier > 0 ? 2 : 1;
         for (let k = 0; k < rings; k++) for (let i = 0; i < n; i++) ebullet(b.x, b.y, i / n * TAU + k * .2, 55 + k * 22, b.dmg * .6, '#2f6bff', 3);
         shake(5); noise(.4, .12, 600); ring(b.x, b.y, 30, '#2f6bff', .35); }
     }
@@ -1227,7 +1233,7 @@ function updateBoss(b, dt) {
       b.x += (dx / d * f + -dy / d * .6) * b.spd * dt; b.y += (dy / d * f + dx / d * .6) * b.spd * dt;
       if (b.stT <= 0) { b.st = 'spiral'; b.stT = 2.2; b.sub = 0; }
     } else if (b.st === 'spiral') {
-      b.sub -= dt; if (b.sub <= 0) { b.sub = .09; b.a += .42; const arms = (enr > 1 ? 3 : 2) + (b.tier > 2 ? 1 : 0);
+      b.sub -= dt; if (b.sub <= 0) { b.sub = .14; b.a += .5; const arms = 2 + (enr > 1 && b.tier > 0 ? 1 : 0);
         for (let i = 0; i < arms; i++) ebullet(b.x, b.y, b.a + i / arms * TAU, 62, b.dmg * .55, '#ff2bd6'); sfx('zap'); }
       if (b.stT <= 0) { b.st = 'out'; b.stT = .4; }
     } else if (b.st === 'out') { b.alpha = Math.max(0, b.stT / .4); if (b.stT <= 0) { const a = rnd(TAU), r = rnd(80, 115);
@@ -1238,14 +1244,14 @@ function updateBoss(b, dt) {
       for (let i = 0; i < 3 + b.tier; i++) spawnEnemy('drone', b.x + rnd(-20, 20), b.y + rnd(-20, 20)); } }
   } else if (id === 'titan') {
     if (b.st === 'walk') { b.x += ch.x * b.spd * dt; b.y += ch.y * b.spd * dt; if (b.stT <= 0) { b.st = 'barrage'; b.stT = .3;
-      const n = (enr > 1 ? 8 : 6) + b.tier;
+      const n = (enr > 1 ? 6 : 5) + b.tier;
       for (let i = 0; i < n; i++) { const off = i === 0 ? 0 : rnd(15, 70), a = rnd(TAU);
         fx.push({ type: 'strike', x: P.x + Math.cos(a) * off, y: P.y + Math.sin(a) * off, r: 18, t: 0, tmax: 1.15 + i * .06, dmg: b.dmg * .9 }); }
       sfx('boss'); } }
     else if (b.st === 'barrage') { if (b.stT <= 0) { b.st = 'sweep'; b.stT = 2.6; b.sub = 0; } }
     else if (b.st === 'sweep') {
       b.x += ch.x * b.spd * .3 * dt; b.y += ch.y * b.spd * .3 * dt;
-      b.sub -= dt; if (b.sub <= 0) { b.sub = .11; b.a += .16; for (let i = 0; i < 4; i++) ebullet(b.x, b.y - 4, b.a + i * TAU / 4, 70, b.dmg * .5, '#ff8a1f', 3); sfx('zap'); }
+      b.sub -= dt; if (b.sub <= 0) { b.sub = .17; b.a += .2; for (let i = 0; i < 3; i++) ebullet(b.x, b.y - 4, b.a + i * TAU / 3, 70, b.dmg * .5, '#ff8a1f', 3); sfx('zap'); }
       if (b.stT <= 0) { b.st = 'walk'; b.stT = 2.4; }
     }
   }
@@ -1262,7 +1268,7 @@ function updateWeapons(dt) {
   tm.pistol -= dt;
   if (pl && tm.pistol <= 0) {
     const tgt = visibleTarget(P.x, P.y, 190);
-    if (tgt) { P.aim = Math.atan2(tgt.y - P.y, tgt.x - P.x); P.muzzle = .07; firePistol(P.x, P.y - 2, tgt, pl); tm.pistol = .55 / (st.rate * (1 + .12 * (pl - 1))); } else tm.pistol = .1;
+    if (tgt) { P.aim = Math.atan2(tgt.y - P.y, tgt.x - P.x); P.muzzle = .07; firePistol(P.x, P.y - 2, tgt, pl); tm.pistol = .55 / (st.rate * (1 + .15 * (pl - 1))); } else tm.pistol = .1;
   }
   if (P.legend.clone) {
     const c = P.clone, tx = P.x - P.lastDir.x * 16, ty = P.y - 14;
@@ -1272,7 +1278,7 @@ function updateWeapons(dt) {
   // Mono-Klingen
   const bl = P.perks.blades || 0;
   if (bl) {
-    S.bladeAng += dt * 3.4; const n = bl + 1, R = 26 * st.area, dmg = (6 + bl * 3) * st.dmg;
+    S.bladeAng += dt * 3.4; const n = bl + 1, R = 26 * st.area, dmg = WDMG.blades(bl) * st.dmg;
     for (let i = 0; i < n; i++) {
       const a = S.bladeAng + i / n * TAU, bx = P.x + Math.cos(a) * R, by = P.y + Math.sin(a) * R;
       gridQuery(bx, by, 22, e => { if (e.bladeT > S.t) return; if ((e.x - bx) ** 2 + (e.y - by) ** 2 < (e.r + 5) ** 2) { e.bladeT = S.t + .4; damage(e, dmg, Math.cos(a) * 60, Math.sin(a) * 60); } });
@@ -1283,21 +1289,21 @@ function updateWeapons(dt) {
   if (tl) { tm.tesla -= dt; if (tm.tesla <= 0) {
     const first = nearestEnemy(P.x, P.y, 135);
     if (first) { tm.tesla = (1.7 - tl * .15) / st.rate; const hit = new Set([first]); const pts = [[P.x, P.y], [first.x, first.y]]; let cur = first;
-      const dmg = (11 + tl * 5) * st.dmg; damage(first, dmg);
+      const dmg = WDMG.tesla(tl) * st.dmg; damage(first, dmg);
       for (let j = 0; j < 1 + tl; j++) { const nx = nearestEnemy(cur.x, cur.y, 60, hit); if (!nx) break; hit.add(nx); pts.push([nx.x, nx.y]); damage(nx, dmg * .85); cur = nx; }
       bolts.push({ pts, t: .15 }); sfx('zap'); } else tm.tesla = .2; } }
   // Nano-Minen
   const ml = P.perks.mines || 0;
   if (ml) { tm.mines -= dt; if (tm.mines <= 0) { tm.mines = (2.6 - ml * .25) / st.rate;
     if (mines.length >= 4 + ml * 2) mines.shift();
-    mines.push({ x: P.x, y: P.y + 3, arm: .5, r: (24 + ml * 4) * st.area, dmg: (26 + ml * 11) * st.dmg, t: 0 }); } }
+    mines.push({ x: P.x, y: P.y + 3, arm: .5, r: (24 + ml * 4) * st.area, dmg: WDMG.mines(ml) * st.dmg, t: 0 }); } }
   // Mikro-Raketen
   const rl = P.perks.rockets || 0;
   if (rl) { tm.rockets -= dt; if (tm.rockets <= 0) {
     const n = 1 + (rl >> 1) + st.multi; let fired = false;
     for (let i = 0; i < n; i++) { const tgt = enemies[(Math.random() * enemies.length) | 0];
       if (!tgt || tgt.dead || !onScreen(tgt.x, tgt.y, 20)) continue; fired = true;
-      const a = rnd(TAU); rockets.push({ x: P.x, y: P.y, vx: Math.cos(a) * 60, vy: Math.sin(a) * 60, tgt, life: 3, dmg: (22 + rl * 9) * st.dmg, r: (18 + rl * 2) * st.area }); }
+      const a = rnd(TAU); rockets.push({ x: P.x, y: P.y, vx: Math.cos(a) * 60, vy: Math.sin(a) * 60, tgt, life: 3, dmg: WDMG.rockets(rl) * st.dmg, r: (18 + rl * 2) * st.area }); }
     tm.rockets = fired ? (2.5 - rl * .2) / st.rate : .3; } }
   // Legendär: Orbital-Uplink
   if (P.legend.orbital) { tm.orbital -= dt; if (tm.orbital <= 0) {
@@ -1317,7 +1323,7 @@ function visibleTarget(x, y, range) {
 }
 function firePistol(x, y, tgt, lvl) {
   const st = P.stats; const ang = Math.atan2(tgt.y - y, tgt.x - x);
-  const n = 1 + st.multi + (lvl >= 5 ? 1 : 0), dmg = (8 + lvl * 3) * st.dmg, pierce = st.pierce + (lvl >= 3 ? 1 : 0);
+  const n = 1 + st.multi + (lvl >= 5 ? 1 : 0), dmg = WDMG.pistol(lvl) * st.dmg, pierce = st.pierce + (lvl >= 3 ? 1 : 0);
   for (let i = 0; i < n; i++) { const a = ang + (i - (n - 1) / 2) * .13;
     bullets.push({ x, y, vx: Math.cos(a) * 230, vy: Math.sin(a) * 230, dmg, pierce, life: .9, r: 2, hits: [] }); }
   sfx('shoot');
@@ -1765,8 +1771,61 @@ function pickPerks(n) {
     for (; i < pool.length - 1; i++) { r -= ws[i]; if (r <= 0) break; }
     out.push(pool.splice(i, 1)[0]);
   }
-  if (!out.length) out.push({ id: 'heal', type: 'p', code: '+HP', name: 'Not-Reparatur', max: 99, desc: () => 'Heilt 40 HP.' });
+  if (!out.length) out.push({ id: 'heal', cat: 'hp', type: 'p', code: '+HP', name: 'Not-Reparatur', max: 99, desc: () => 'Heilt 40 HP.' });
   return out;
+}
+// ---------------------------------------------------------------- Perk-Icons (12x12 Pixel-Art)
+const IR = {
+  pistol: ["............", "..kkkkkkkkk.", ".khhhhhhhhck", ".kGGGGGGGGk.", ".kGGkkkkkk..", ".kGGk.......", ".kGvk.......", ".kGvk.......", ".kkkk......."],
+  blades: ["....kk......", "...kwek.....", "...kek......", "..kek...kk..", "..kek..kewk.", "...kk.kek...", "...kkkkk....", "..kek.kk....", ".kwek..kek..", "..kk...kek..", "......kewk..", ".......kk..."],
+  tesla: ["......kkkk..", ".....keeek..", "....kecck...", "...kecck....", "..kecckkkk..", ".keeeeeeek..", "..kkkkecck..", "....kecck...", "...kecck....", "..keck......", "..kek.......", "..kk........"],
+  mines: [".....kk.....", "..k..kr..k..", "...kkkkkk...", "..kGGGGGGk..", ".kkGrrrrGkk.", "..kGrwrrGk..", "..kGrrrrGk..", ".kkGrrrrGkk.", "..kGGGGGGk..", "...kkkkkk...", "..k..kk..k.."],
+  rockets: [".........kk.", "........kwk.", ".......kGGk.", "......kGGk..", ".....kGrk...", "..kkkGrk....", ".kokGGk.....", "..kGGk......", ".kokkok.....", ".kyk.kk.....", ".kk........."],
+  dmg: [".....kk.....", "....kyyk....", "....kyyk....", "...kaaaak...", "...kaaaak...", "...kaaaak...", "...kaaaak...", "...kqqqqk...", "...kkkkkk..."],
+  rate: [".kk...kk....", ".kek..kek...", "..kek..kek..", "...kek..kek.", "....kek..kek", "...kek..kek.", "..kek..kek..", ".kek..kek...", ".kk...kk...."],
+  multi: [".kkkk.......", ".kaayk......", ".kkkk.......", "....kkkk....", "....kaayk...", "....kkkk....", ".kkkk.......", ".kaayk......", ".kkkk......."],
+  pierce: ["......kk....", "......kGk...", "......kGk...", "kkkkkkkGkkk.", "keeeeekGeeek", "kkkkkkkGkkk.", "......kGk...", "......kGk...", "......kk...."],
+  crit: [".....kk.....", "....krrk....", "...kkrrkk...", "..kr....rk..", ".kr......rk.", "krrr.yy.rrrk", "krrr.yy.rrrk", ".kr......rk.", "..kr....rk..", "...kkrrkk...", "....krrk....", ".....kk....."],
+  area: ["....kkkk....", "..kkppppkk..", ".kpkkkkkkpk.", ".kpk....kpk.", "kpk..kk..kpk", "kpk.kffk.kpk", "kpk.kffk.kpk", "kpk..kk..kpk", ".kpk....kpk.", ".kpkkkkkkpk.", "..kkppppkk..", "....kkkk...."],
+  hp: [".kkk...kkk..", "krrrk.krrrk.", "krwrrkrrrrk.", "krrrrrrrrrk.", "krrrrrrrrRk.", ".krrrrrrRk..", "..krrrrRk...", "...krrRk....", "....krk.....", ".....k......"],
+  regen: ["....kkkk....", "....kllk....", "....kllk....", ".kkkkllkkkk.", ".kllllllllk.", ".kllwlllllk.", ".kkkkllkkkk.", "....kllk....", "....kllk....", "....kkkk...."],
+  speed: ["......kk....", "......kck...", ".kkk..kcck..", "......kccck.", "kkkkkkkcccck", "kcccccccccck", "kkkkkkkcccck", "......kccck.", ".kkk..kcck..", "......kck...", "......kk...."],
+  magnet: [".kkkk..kkkk.", ".kwwk..kwwk.", ".krrk..kbbk.", ".krrk..kbbk.", ".krrk..kbbk.", ".krrkkkkbbk.", ".krrrrbbbbk.", "..krrrbbbk..", "...kkkkkk..."],
+  xp: [".....kk.....", "....kwck....", "...kwccck...", "..kwcccccck.", ".kwcccccccCk", "..kcccccCCk.", "...kccCCCk..", "....kcCCk...", ".....kCk....", "......k....."],
+  cool: ["...kkkkkk...", "..keeeeeek..", ".keeeekeeek.", "keeeeekeeeek", "keeeeekeeeek", "keeeeekkkeek", "keeeeeeeeeek", "keeeeeeeeeek", ".keeeeeeeek.", "..keeeeeek..", "...kkkkkk..."],
+  flame: [".....k......", "....kok.....", "...koyok....", "...koyyok...", "..koyyyyok..", ".kooyywyyok.", ".koyywwwyok.", ".koyywwwyok.", ".kooyywyyok.", "..kooyyook..", "...kkkkkk..."],
+  battery: ["....kkkk....", "...kGGGGk...", "..kkkkkkkk..", "..kvllllvk..", "..kvllllvk..", "..kvlwllvk..", "..kvllllvk..", "..kvllllvk..", "..kvLLLLvk..", "..kvLLLLvk..", "..kkkkkkkk.."],
+};
+const ICONDEF = { heal: ['hp'], bigheal: ['hp', { r: '#ffd23f', R: '#b89a1e' }], chrome: ['hp', { r: '#c9c6e8', R: '#6a668e' }], bullettime: ['cool', { e: '#ffe14d' }],
+  overclock: ['rate', { e: '#ffd23f' }], phantom: ['speed', { c: '#c9a6ff' }], vampire: ['hp', { r: '#b01c95', R: '#4a0d20' }], orbital: ['crit', { r: '#19f0ff', y: '#ffffff' }],
+  firewall: ['flame'], quantum: ['battery'] };
+const iconCache = {};
+function iconURL(id) {
+  if (iconCache[id]) return iconCache[id];
+  let spr;
+  if (id === 'clone') spr = SPR.clone; else { const [rows, pal] = ICONDEF[id] || [id]; spr = mk(IR[rows] || IR.dmg, false, pal || null); }
+  return iconCache[id] = spr.frames[0].n.toDataURL();
+}
+const CATS = { w: ['WAFFE', 'cat-w'], hp: ['HP', 'cat-hp'], sup: ['SUPPORT', 'cat-sup'] };
+function statLine(o, cur) {
+  const st = P.stats, D = v => Math.round(v * st.dmg), pc = v => Math.round(v * 100) + ' %';
+  if (WDMG[o.id]) return cur ? `Schaden ${D(WDMG[o.id](cur))} > ${D(WDMG[o.id](cur + 1))}` : `Schaden ${D(WDMG[o.id](1))}`;
+  switch (o.id) {
+    case 'dmg': return `Schaden ${pc(st.dmg)} > ${pc(st.dmg + .25)}`;
+    case 'rate': return `Feuerrate ${pc(st.rate)} > ${pc(st.rate + .15)}`;
+    case 'multi': return `Projektile +${st.multi} > +${st.multi + 1}`;
+    case 'pierce': return `Durchschlag +${st.pierce} > +${st.pierce + 1}`;
+    case 'crit': return `Krit ${pc(st.crit)} > ${pc(st.crit + .07)}`;
+    case 'area': return `Fläche ${pc(st.area)} > ${pc(st.area + .15)}`;
+    case 'hp': return `Max-HP ${P.maxHp} > ${P.maxHp + 25}`;
+    case 'regen': return `${st.regen.toFixed(1)} > ${(st.regen + .5).toFixed(1)} HP/s`;
+    case 'heal': return `HP ${Math.ceil(P.hp)} > ${Math.min(P.maxHp, Math.ceil(P.hp + 40))}`;
+    case 'speed': return `Tempo ${pc(st.speed)} > ${pc(st.speed + .1)}`;
+    case 'magnet': return `Radius ${Math.round(st.magnet)} > ${Math.round(st.magnet * 1.4)}`;
+    case 'xp': return `XP ${pc(st.xp)} > ${pc(st.xp + .15)}`;
+    case 'cool': return `Dash ${(2.6 * st.dashCd).toFixed(1)} s > ${(2.6 * st.dashCd * .82).toFixed(1)} s`;
+  }
+  return '';
 }
 function pickLegends(n) {
   const pool = LEGENDS.filter(l => !P.legend[l.id]).sort(() => Math.random() - .5).slice(0, n);
@@ -1778,7 +1837,7 @@ function applyPerk(p) {
   if (p.id === 'heal') { heal(40); return; }
   P.perks[p.id] = (P.perks[p.id] || 0) + 1;
   switch (p.id) {
-    case 'dmg': st.dmg += .2; break; case 'rate': st.rate += .15; break; case 'multi': st.multi++; break; case 'pierce': st.pierce++; break;
+    case 'dmg': st.dmg += .25; break; case 'rate': st.rate += .15; break; case 'multi': st.multi++; break; case 'pierce': st.pierce++; break;
     case 'hp': P.maxHp += 25; heal(25); break; case 'regen': st.regen += .5; break; case 'speed': st.speed += .1; break;
     case 'magnet': st.magnet *= 1.4; S.magShow = 2; break; case 'xp': st.xp += .15; break; case 'crit': st.crit += .07; break;
     case 'area': st.area += .15; break; case 'cool': st.dashCd *= .82; break;
@@ -1800,12 +1859,14 @@ function openChoice(kind) {
   const cards = $('cards'); cards.innerHTML = ''; cards.classList.remove('ready');
   const opts = legend ? pickLegends(3) : pickPerks(3);
   opts.forEach((o, i) => {
-    const b = document.createElement('button'); b.className = 'card ' + (legend ? 'legend' : o.type === 'w' ? '' : 'mod');
+    const cat = legend ? null : CATS[o.cat || 'w'];
+    const b = document.createElement('button'); b.className = 'card ' + (legend ? 'legend' : cat[1]);
     const cur = legend ? 0 : (P.perks[o.id] || 0);
     let pips = '';
     if (!legend && o.max < 20) { pips = '<span class="pips">'; for (let k = 0; k < o.max; k++) pips += `<i class="${k < cur ? 'on' : k === cur ? 'new' : ''}"></i>`; pips += '</span>'; }
-    const tag = legend ? 'SPEZIAL-PERK' : o.type === 'w' ? (cur ? 'WAFFE · STUFE ' + (cur + 1) : 'NEUE WAFFE') : 'MOD';
-    b.innerHTML = `<span class="ic">${o.code}</span><span class="tag">${tag}${pips}</span><span class="nm">${o.name}</span><span class="ds">${legend ? o.desc : o.desc(cur + 1)}</span>`;
+    const tag = legend ? 'SPEZIAL-PERK' : o.type === 'w' ? (cur ? 'WAFFE · STUFE ' + (cur + 1) : 'NEUE WAFFE') : cat[0];
+    const sl = legend ? '' : statLine(o, cur);
+    b.innerHTML = `<span class="ic"><img src="${iconURL(o.id)}" alt=""></span><span class="tag">${tag}${pips}</span><span class="nm">${o.name}</span><span class="ds">${legend ? o.desc : o.desc(cur + 1)}</span>${sl ? `<span class="sl">${sl}</span>` : ''}`;
     b.addEventListener('click', () => {
       if (S.state !== 'choice') return;
       if (legend) { applyLegend(o); S.pendingLegend--; } else { applyPerk(o); S.pendingLvl--; }
