@@ -747,7 +747,7 @@ const PERKS = [
   { id: 'hp', type: 'p', code: 'TP', name: 'Titan-Plating', max: 5, desc: () => '+25 Max-HP und heilt 25 HP.' },
   { id: 'regen', type: 'p', code: 'NR', name: 'Nano-Reparatur', max: 5, desc: () => '+0,5 HP pro Sekunde.' },
   { id: 'speed', type: 'p', code: 'KS', name: 'Kinetik-Servos', max: 4, desc: () => '+10 % Lauftempo.' },
-  { id: 'magnet', type: 'p', code: 'MI', name: 'Magnet-Implantat', max: 4, desc: () => '+40 % Sammelradius für Daten.' },
+  { id: 'magnet', type: 'p', code: 'MI', name: 'Magnet-Implantat', max: 6, desc: () => '+40 % Aufheberadius für Daten, Medikits und Items.' },
   { id: 'xp', type: 'p', code: 'DK', name: 'Daten-Kompressor', max: 4, desc: () => '+15 % Erfahrung.' },
   { id: 'crit', type: 'p', code: 'ZO', name: 'Ziel-Optik', max: 4, desc: () => '+7 % Chance auf doppelten Schaden.' },
   { id: 'area', type: 'p', code: 'PV', name: 'Plasma-Verstärker', max: 4, desc: () => '+15 % Fläche (Klingen, Minen, Explosionen).' },
@@ -782,7 +782,7 @@ const BOSSES = [
 // ---------------------------------------------------------------- Zustand
 let S, P, enemies, bullets, ebullets, pickups, parts, texts, mines, rockets, bolts, fx, boss;
 let nextId = 1;
-const xpNeed = l => Math.floor(5 + (l - 1) * 5 + Math.pow(l - 1, 1.8));
+const xpNeed = l => Math.floor(2 * (5 + (l - 1) * 5 + Math.pow(l - 1, 1.8))); // doppelt so viel XP = halb so viele Upgrades
 function newGame() {
   S = { state: 'play', t: 0, spawnT: 1, hordeT: 55, shake: 0, slowT: 0, pendingLvl: 0, pendingLegend: 0, bossQueue: 0,
     bossWarn: 0, bossCount: 0, dashId: 0, timers: { pistol: 0.3, tesla: 1, mines: 1, rockets: 1.5, orbital: 3, clone: 1, aura: 0 },
@@ -907,7 +907,7 @@ function dropGem(x, y, v) {
   if (pickups.length > 450) { const g = pickups[(Math.random() * pickups.length) | 0]; if (g.kind === 'xp') { g.v += v; return; } }
   pickups.push({ kind: 'xp', x: x + rnd(-2, 2), y: y + rnd(-2, 2), v, tier, t: 0 });
 }
-function heal(n) { const before = P.hp; P.hp = Math.min(P.maxHp, P.hp + n); if (P.hp > before) addText(P.x, P.y - 12, '+' + Math.round(P.hp - before), '#6dff8a'); }
+function heal(n, quiet = false) { const before = P.hp; P.hp = Math.min(P.maxHp, P.hp + n); const got = Math.round(P.hp - before); if (!quiet && got >= 1) addText(P.x, P.y - 12, '+' + got, '#6dff8a'); }
 function hurtPlayer(d) {
   if (P.inv > 0 || P.dashT > 0 || S.state !== 'play') return;
   P.hp -= d; P.inv = .6; shake(4); vibrate(35); sfx('hurt');
@@ -946,7 +946,7 @@ function doNova(free = false) {
 
 // ---------------------------------------------------------------- Spawns
 function pickType(t) {
-  const w = [['drone', 3], ['ganger', t > 12 ? 4 : 1], ['kamikaze', t > 45 ? 1.6 : 0], ['spitter', t > 75 ? 1.3 : 0], ['brute', t > 100 ? .8 + t / 300 : 0]];
+  const w = [['drone', 3], ['ganger', t > 12 ? 4 : 1], ['kamikaze', t > 45 ? 1.6 : 0], ['spitter', t > 110 ? .45 : 0], ['brute', t > 100 ? .7 + t / 500 : 0]];
   let sum = 0; for (const [, v] of w) sum += v; let r = Math.random() * sum;
   for (const [k, v] of w) { r -= v; if (r <= 0) return k; } return 'drone';
 }
@@ -967,13 +967,13 @@ function spawnEnemy(type, x, y) {
 function spawner(dt) {
   S.spawnT -= dt;
   if (S.spawnT <= 0) {
-    S.spawnT = Math.max(.14, 1.05 - S.t * .0055) * (boss ? 2 : 1);
-    const n = 1 + Math.floor(S.t / 45);
+    S.spawnT = Math.max(.3, 1.1 - S.t * .0027) * (boss ? 2 : 1);
+    const n = 1 + Math.floor(S.t / 100);
     for (let i = 0; i < n; i++) spawnEnemy(pickType(S.t));
   }
   S.hordeT -= dt;
   if (S.hordeT <= 0 && !boss) { // Drohnenschwarm kreist dich ein
-    S.hordeT = 60; const n = 22 + Math.floor(S.t / 20), dist = Math.hypot(GW, GH) / 2 + 10;
+    S.hordeT = 75; const n = 16 + Math.floor(S.t / 40), dist = Math.hypot(GW, GH) / 2 + 10;
     for (let i = 0; i < n; i++) { const a = i / n * TAU; spawnEnemy(S.t > 120 ? 'ganger' : 'drone', P.x + Math.cos(a) * dist, P.y + Math.sin(a) * dist); }
     showBanner('DROHNENSCHWARM!', 'warn', 1.6);
   }
@@ -1142,7 +1142,7 @@ function update(dt) {
   if (mv.x || mv.y) { P.anim += dt * 9; const d = Math.hypot(mv.x, mv.y); P.lastDir = { x: mv.x / d, y: mv.y / d }; if (Math.abs(mv.x) > .1) P.face = mv.x > 0 ? 1 : -1; }
   P.inv = Math.max(0, P.inv - dt);
   if (P.dashCharges < P.dashMax) { P.dashCd += dt; if (P.dashCd >= 2.6 * P.stats.dashCd) { P.dashCharges++; P.dashCd = 0; } } else P.dashCd = 0;
-  if (P.stats.regen) heal(P.stats.regen * dt);
+  if (P.stats.regen) heal(P.stats.regen * dt, true); // Regeneration ohne Zahlen-Spam
 
   gridBuild(); buildFlow();
   updateWeapons(dt);
@@ -1160,7 +1160,7 @@ function update(dt) {
       if (d < 70) { vx = -vx; vy = -vy; } else { const t = vx; vx = -vy * .7; vy = t * .7; }
     } else if (fl) { vx = fl.x; vy = fl.y; }
     if (e.ranged) {
-      e.shootT -= edt; if (e.shootT <= 0 && d < 170 && los(e.x, e.y, P.x, P.y)) { e.shootT = 2.4; ebullet(e.x, e.y, Math.atan2(dy, dx), 72, e.dmg, '#9b4dff', 2); }
+      e.shootT -= edt; if (e.shootT <= 0 && d < 170 && los(e.x, e.y, P.x, P.y)) { e.shootT = 3.6; ebullet(e.x, e.y, Math.atan2(dy, dx), 72, e.dmg, '#9b4dff', 2); }
     }
     if (e.explode) {
       if (e.fuse < 0 && d < 15) e.fuse = .35;
@@ -1308,6 +1308,8 @@ function render(now) {
     ctx.fillStyle = 'rgba(255,51,85,.25)'; ctx.beginPath(); ctx.arc(f.x - camX, f.y - camY, f.r * k, 0, TAU); ctx.fill();
   }
   if (P.legend.firewall) { ctx.globalCompositeOperation = 'lighter'; glowAt('rgba(255,120,40,0.35)', Math.round(38 * P.stats.area), P.x, P.y, .7 + .2 * Math.sin(tsec * 8)); ctx.globalCompositeOperation = 'source-over'; }
+  if (S.magShow > 0) { S.magShow -= 1 / 60; ctx.strokeStyle = `rgba(25,240,255,${Math.min(.6, S.magShow * .4)})`; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(P.x - camX, P.y - camY, P.stats.magnet, 0, TAU); ctx.stroke(); }
   // Pickups
   for (const g of pickups) {
     if (!onScreen(g.x, g.y, 12)) continue; const bob = Math.round(Math.sin(g.t * 5 + g.x) * 1);
@@ -1467,7 +1469,7 @@ function pickPerks(n) {
   const pool = PERKS.filter(p => (P.perks[p.id] || 0) < p.max && (p.type !== 'w' || P.perks[p.id] || owned < 4));
   const out = [];
   while (out.length < n && pool.length) {
-    const ws = pool.map(p => p.type === 'w' ? (P.perks[p.id] ? 1.2 : 1.5) : 1); let sum = ws.reduce((a, b) => a + b, 0), r = Math.random() * sum, i = 0;
+    const ws = pool.map(p => p.type === 'w' ? (P.perks[p.id] ? 1.2 : 1.5) : p.id === 'magnet' ? 1.6 : 1); let sum = ws.reduce((a, b) => a + b, 0), r = Math.random() * sum, i = 0;
     for (; i < pool.length - 1; i++) { r -= ws[i]; if (r <= 0) break; }
     out.push(pool.splice(i, 1)[0]);
   }
@@ -1486,7 +1488,7 @@ function applyPerk(p) {
   switch (p.id) {
     case 'dmg': st.dmg += .2; break; case 'rate': st.rate += .15; break; case 'multi': st.multi++; break; case 'pierce': st.pierce++; break;
     case 'hp': P.maxHp += 25; heal(25); break; case 'regen': st.regen += .5; break; case 'speed': st.speed += .1; break;
-    case 'magnet': st.magnet *= 1.4; break; case 'xp': st.xp += .15; break; case 'crit': st.crit += .07; break;
+    case 'magnet': st.magnet *= 1.4; S.magShow = 2; break; case 'xp': st.xp += .15; break; case 'crit': st.crit += .07; break;
     case 'area': st.area += .15; break; case 'cool': st.dashCd *= .82; break;
   }
 }
