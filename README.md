@@ -54,11 +54,16 @@ Cyberpunk-Survivor in 2D-Pixel-Art, Top-Down – eine einzelne HTML-Datei ohne A
 - **Alle 3 Level erscheint ein Boss** (Enforcer MK-III, Netrunner Hydra, Konzern-Titan – danach stärker im Kreis).
   Besiegte Bosse lassen einen **Boss-Kern** fallen: Auswahl aus 3 von 9 **Spezial-Perks**
   (z. B. Chrom-Herz, Bullet-Time, Orbital-Uplink, Klon-Drohne).
-- **Stadt:** endlose, zufällig erzeugte Stadtblöcke in vier Distrikten – Downtown (Hochhäuser mit
-  Dächern, Helipads, Werbetafeln, erleuchteten Fassaden), Industrie (Container, explosive Fässer mit
-  Kettenreaktion), Markt (Stände mit Neon-Markisen) und Park (Bäume, Giftteiche) – plus Plätze mit
-  Hologramm-Statuen und geparkte Hover-Autos. Gebäude blockieren Laufwege und Kugeln (Deckung!);
-  Gegner finden per Wegfindung um Hindernisse herum, Drohnen fliegen darüber hinweg.
+- **Stadt:** endlose, zufällig erzeugte Stadtblöcke in sechs Distrikten mit zehn Blocktypen –
+  Hochhäuser, Konzernzentralen (Glasturm, Hologramm-Logo, Brunnen), Plätze, Parkplätze, Industrie
+  (Container, explosive Fässer), Baustellen (Rohbau, drehender Kran, Gruben), Markt, Slums
+  (Wellblechhütten, Feuertonnen, Lichterketten), Parks und Kanäle mit Brücken und Booten.
+  Auf den Straßen: geparkte Hover-Autos, brennende Wracks, Polizeisperren.
+  Gebäude blockieren Laufwege und Kugeln (Deckung!); Gegner finden per Wegfindung um Hindernisse
+  herum, Drohnen fliegen darüber hinweg. Holzkisten lassen sich zerschießen und enthalten Beute.
   Läuft der Enforcer bei seinem Sturmangriff gegen eine Wand, ist er kurz benommen.
+- **Grafik:** Lichtkarte (dunkle Stadt, Lichtkegel von Laternen, Neon, Feuer, Explosionen),
+  Brandflecken und Spritzer am Boden, Gegner zerfallen in ihre Pixel, Rauch, Dampf, Funken,
+  glitzerndes Wasser, Flugverkehr über den Dächern.
 - Gegnertypen: Drohne, Gang-Punk, Kamikaze-Bot, Spitter (schießt), Mech-Brute, seltene Elite-Varianten,
   jede Minute ein Drohnenschwarm.
