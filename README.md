@@ -50,7 +50,8 @@ Cyberpunk-Survivor in 2D-Pixel-Art, Top-Down – eine einzelne HTML-Datei ohne A
 
 ### Ablauf
 - Gegner lassen Datensplitter fallen → Erfahrung → **Level-Up mit Auswahl aus 3 Perks**
-  (5 Waffen, 12 Mods, jeweils mehrstufig).
+  (5 Waffen: Smart-Pistole, Mono-Klingen, Tesla-Kette, Auto-Geschütz, Mikro-Raketen;
+  12 Mods, jeweils mehrstufig). Auto-Geschütze werden abgestellt, feuern 10 s und verschwinden dann.
 - **Alle 3 Level erscheint ein Boss** (Enforcer MK-III, Netrunner Hydra, Konzern-Titan – danach stärker im Kreis).
   Besiegte Bosse lassen einen **Boss-Kern** fallen: Auswahl aus 3 von 9 **Spezial-Perks**
   (z. B. Chrom-Herz, Bullet-Time, Orbital-Uplink, Klon-Drohne).
