@@ -1287,11 +1287,11 @@ function pickType(t) {
   for (const [k, v] of w) { r -= v; if (r <= 0) return k; } return 'drone';
 }
 function spawnEnemy(type, x, y) {
-  if (enemies.length >= 260) return null;
+  if (enemies.length >= 280) return null;
   const d = ET[type];
   if (x === undefined) { const dist = Math.hypot(GW, GH) / 2 + 16;
     for (let k = 0; k < 8; k++) { const a = rnd(TAU); x = P.x + Math.cos(a) * dist; y = P.y + Math.sin(a) * dist; if (d.fly || isFree(x, y, d.r + 1)) break; } }
-  const tm = 1 + S.t / 60 * .37 + (P.lvl - 1) * .025;
+  const tm = 1 + S.t / 60 * .4 + (P.lvl - 1) * .028;
   const elite = Math.random() < .03 + Math.min(.03, S.t / 20000) && S.t > 30;
   const spr = SPR[d.spr];
   const e = { id: nextId++, type, x, y, r: d.r * (elite ? 1.3 : 1), hp: d.hp * tm * (elite ? 5 : 1), maxHp: 0, spd: d.spd * rnd(.9, 1.1),
@@ -1303,13 +1303,13 @@ function spawnEnemy(type, x, y) {
 function spawner(dt) {
   S.spawnT -= dt;
   if (S.spawnT <= 0) {
-    S.spawnT = Math.max(.4, 1.2 - S.t * .0021) * (boss ? 2 : 1);
-    const n = 1 + Math.floor(S.t / 125);
+    S.spawnT = Math.max(.36, 1.15 - S.t * .0024) * (boss ? 2 : 1);
+    const n = 1 + Math.floor(S.t / 110);
     for (let i = 0; i < n; i++) spawnEnemy(pickType(S.t));
   }
   S.hordeT -= dt;
   if (S.hordeT <= 0 && !boss) { // Drohnenschwarm kreist dich ein
-    S.hordeT = 80; const n = 14 + Math.floor(S.t / 42), dist = Math.hypot(GW, GH) / 2 + 10;
+    S.hordeT = 75; const n = 15 + Math.floor(S.t / 40), dist = Math.hypot(GW, GH) / 2 + 10;
     for (let i = 0; i < n; i++) { const a = i / n * TAU; spawnEnemy(S.t > 120 ? 'ganger' : 'drone', P.x + Math.cos(a) * dist, P.y + Math.sin(a) * dist); }
     showBanner('DROHNENSCHWARM!', 'warn', 1.6);
   }
