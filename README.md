@@ -62,7 +62,9 @@ Cyberpunk-Survivor in 2D-Pixel-Art, Top-Down – eine einzelne HTML-Datei ohne A
   Gebäude blockieren Laufwege und Kugeln (Deckung!); Gegner finden per Wegfindung um Hindernisse
   herum, Drohnen fliegen darüber hinweg. Holzkisten lassen sich zerschießen und enthalten Beute.
   Läuft der Enforcer bei seinem Sturmangriff gegen eine Wand, ist er kurz benommen.
-- **Grafik:** Lichtkarte (dunkle Stadt, Lichtkegel von Laternen, Neon, Feuer, Explosionen),
+- **Grafik:** organische Oberflächen (Rauschtexturen für Schmutz, Pfützen mit Regenringen, Moos,
+  Risse mit Unkraut, Laub; Kopfstein- und Ziegelpflaster; verwitterte Dächer mit Efeu und Rost),
+  treibender Nebel, Lichtkarte (dunkle Stadt, Lichtkegel von Laternen, Neon, Feuer, Explosionen),
   Brandflecken und Spritzer am Boden, Gegner zerfallen in ihre Pixel, Rauch, Dampf, Funken,
   glitzerndes Wasser, Flugverkehr über den Dächern.
 - Gegnertypen: Drohne, Gang-Punk, Kamikaze-Bot, Spitter (schießt), Mech-Brute, seltene Elite-Varianten,
