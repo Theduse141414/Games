@@ -1,5 +1,35 @@
 # Games
 
+## Tiefblau – Tauchen & Sushi
+
+Tagsüber Fische am Riff fangen, abends in der eigenen Sushi-Bar servieren – eine einzelne
+HTML-Datei, keine Abhängigkeiten, fürs Handy gebaut (Hoch- und Querformat).
+
+**Starten:** `tiefblau/index.html` im Browser öffnen.
+
+### Steuerung (ohne Tasten auf dem Bildschirm)
+- **Finger ziehen** – Mika schwimmt in diese Richtung (der Steuerkreis erscheint dort, wo du tippst).
+- **Kurz tippen** – Harpune schießen; sie zielt automatisch auf den nächsten Fisch.
+  Mit zwei Daumen: einer steuert, der andere tippt.
+- **Zum Boot zurückschwimmen** und kurz dort bleiben – der Tauchgang endet.
+- **Abends:** Gäste antippen (servieren, Tee einschenken, Teller abräumen). Beim Tee
+  einmal tippen, wenn der Balken im grünen Bereich ist.
+- Einziger Button im Spiel: Pause oben rechts (Ton, Vollbild, zum Titel).
+- Am Computer: `W`/`A`/`S`/`D` oder Pfeiltasten + Leertaste, oder Maus ziehen/klicken;
+  in der Sushi-Bar `1`–`5` für die Plätze.
+
+### Ablauf
+- **Tauchen:** Die Luft ist zugleich Zeit und Leben. Tiefer wird sie schneller knapp,
+  unterhalb des Anzug-Limits sehr schnell. Luftblasen (O₂) füllen nach, Schatztruhen
+  bringen Münzen, das Netz fasst nur ein begrenztes Gewicht. Geht die Luft aus, ist die
+  Hälfte des Fangs weg.
+- **Drei Zonen** bis 270 m mit 13 Arten – von Sardinen über Kugelfische und Thunfische
+  bis zu Anglerfischen, Riffhaien und dem Mondfisch. Manche wehren sich.
+- **Sushi-Bar:** Jeder Fisch ergibt Portionen. Schnelles Servieren bringt Trinkgeld,
+  zufriedene Gäste bringen Sterne – und damit mehr Plätze, mehr Gäste, höhere Preise.
+- **Hafen:** Münzen in Sauerstoffflasche, Harpune, Fangnetz, Tauchanzug und Flossen
+  stecken. Der Spielstand wird automatisch im Browser gespeichert.
+
 ## Pong
 
 Ein klassisches Pong-Spiel im Browser – eine einzelne HTML-Datei, keine Abhängigkeiten.
