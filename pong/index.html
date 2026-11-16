@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Pong</title>
+<style>
+  :root { --bg: #0b0f1a; --fg: #e8ecf5; --accent: #4fd1c5; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden;
+    overscroll-behavior: none; touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  .hud-btn { position: fixed; right: 12px; width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+    background: rgba(232,236,245,0.08); color: var(--fg); border: 1px solid rgba(232,236,245,0.25);
+    border-radius: 8px; cursor: pointer; opacity: 0.7; transition: opacity .15s, background .15s;
+    touch-action: manipulation; }
+  .hud-btn:hover, .hud-btn:focus-visible { opacity: 1; background: rgba(79,209,197,0.2); outline: none; }
+  .hud-btn svg { width: 22px; height: 22px; }
+  #fullscreen { top: calc(12px + env(safe-area-inset-top)); }
+  #pause { top: calc(64px + env(safe-area-inset-top)); display: none; }
+  #menu { top: calc(116px + env(safe-area-inset-top)); display: none; }
+  body.playing #pause, body.playing #menu { display: flex; }
+  /* Hochformat: Buttons links an der Mittellinie, damit sie keinen Schläger verdecken */
+  @media (orientation: portrait) {
+    .hud-btn { right: auto; left: calc(8px + env(safe-area-inset-left)); opacity: 0.55; }
+    #fullscreen { top: calc(50% - 78px); }
+    #pause { top: calc(50% - 22px); }
+    #menu { top: calc(50% + 34px); }
+  }
+  #fullscreen .exit { display: none; }
+  body.is-fullscreen #fullscreen .enter { display: none; }
+  body.is-fullscreen #fullscreen .exit { display: block; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<button id="fullscreen" class="hud-btn" type="button" title="Vollbild (F)" aria-label="Vollbild umschalten">
+  <svg class="enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  <svg class="exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+</button>
+<button id="pause" class="hud-btn" type="button" title="Pause (P)" aria-label="Pause">
+  <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+</button>
+<button id="menu" class="hud-btn" type="button" title="Menü (M)" aria-label="Zum Menü">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  // Logisches Spielfeld (immer quer). Im Hochformat wird es um 90° gedreht dargestellt:
+  // Spieler 1 (links) sitzt dann unten, Spieler 2 (rechts) oben.
+  const W = 900, H = 560;
+
+  // ---- Konfiguration ----
+  const PADDLE_W = 14, PADDLE_H = 90, PADDLE_SPEED = 520, MARGIN = 30;
+  const TOUCH_SPEED_FACTOR = 2.2;
+  // Schläger dürfen bis zu 1/10 der Feldlänge ins Feld bewegt werden
+  const REACH = W / 10;
+  const LEFT_HOME = MARGIN, RIGHT_HOME = W - MARGIN - PADDLE_W;
+  const PADDLE_X_SPEED = 650;      // Tastatur
+  const PADDLE_X_MAX_SPEED = 2600; // Touch/Maus (schnelle Schwünge)
+  // Schwung: Vorwärtsgeschwindigkeit des Schlägers beim Treffer -> Ball wird schneller
+  const SWING_MIN = 150, SWING_FULL = 1100, SWING_MAX_BOOST = 0.7;
+  const BALL_SWING_MAX_SPEED = 1600;
+  const BALL_R = 8, BALL_START_SPEED = 380, BALL_SPEEDUP = 1.06, BALL_MAX_SPEED = 1100;
+  const WIN_SCORE = 7;
+  const DIFFICULTY = {
+    leicht: { speed: 0.55, error: 60, reaction: 0.25, swing: 0 },
+    mittel: { speed: 0.8,  error: 30, reaction: 0.12, swing: 0.3 },
+    schwer: { speed: 1.0,  error: 8,  reaction: 0.04, swing: 0.6 },
+  };
+  const DIFF_KEYS = Object.keys(DIFFICULTY);
+  const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+  const isTouch = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+
+  // ---- Zustand ----
+  const state = {
+    screen: "menu",          // menu | serve | play | pause | over
+    menuIndex: 0,            // 0 = 1 Spieler, 1 = 2 Spieler
+    diffIndex: 1,
+    twoPlayer: false,
+    left:  { x: LEFT_HOME,  prevX: LEFT_HOME,  vx: 0, y: H / 2 - PADDLE_H / 2, score: 0 },
+    right: { x: RIGHT_HOME, prevX: RIGHT_HOME, vx: 0, y: H / 2 - PADDLE_H / 2, score: 0 },
+    ball:  { x: W / 2, y: H / 2, vx: 0, vy: 0, speed: BALL_START_SPEED, base: BALL_START_SPEED, boost: 0 },
+    serveDir: 1,
+    serveTimer: 0,
+    ai: { target: H / 2, timer: 0, swing: false, swingDecided: false, swingSpeed: 0 },
+    winnerSide: "",
+    particles: [],
+  };
+
+  // ---- Bildschirm / Skalierung ----
+  let view = { w: 1, h: 1, dpr: 1, portrait: false, s: 1, ox: 0, oy: 0 };
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    const portrait = h > w;
+    const fw = portrait ? H : W, fh = portrait ? W : H;
+    const s = Math.min(w / fw, h / fh);
+    view = { w, h, dpr, portrait, s, ox: (w - fw * s) / 2, oy: (h - fh * s) / 2 };
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function gameTransform() {
+    const { dpr, s, ox, oy } = view;
+    if (!view.portrait) ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * ox, dpr * oy);
+    else ctx.setTransform(0, -dpr * s, dpr * s, 0, dpr * ox, dpr * (oy + W * s));
+  }
+  function uiTransform() { ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0); }
+
+  // Logische Koordinaten -> Bildschirm (CSS-Pixel) und zurück
+  function toScreen(x, y) {
+    const { s, ox, oy } = view;
+    return view.portrait ? { x: ox + y * s, y: oy + (W - x) * s } : { x: ox + x * s, y: oy + y * s };
+  }
+  function toLogical(sx, sy) {
+    const { s, ox, oy } = view;
+    return view.portrait ? { x: W - (sy - oy) / s, y: (sx - ox) / s } : { x: (sx - ox) / s, y: (sy - oy) / s };
+  }
+  function cssPoint(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  // ---- Tastatur ----
+  const keys = new Set();
+  window.addEventListener("keydown", (e) => {
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
+    if (e.repeat) return;
+    keys.add(e.key.toLowerCase());
+    mouseActive = false; // Tastatur hat Vorrang, bis die Maus wieder bewegt wird
+    onKeyPress(e.key);
+  });
+  window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
+  function autoPause() {
+    keys.clear();
+    touchCtl.clear();
+    if (state.screen === "play" || state.screen === "serve") state.screen = "pause";
+  }
+  window.addEventListener("blur", autoPause);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) autoPause(); });
+
+  function onKeyPress(key) {
+    ensureAudio();
+    const k = key.toLowerCase();
+    if (k === "f") { toggleFullscreen(); return; }
+    switch (state.screen) {
+      case "menu":
+        if (k === "arrowup" || k === "arrowdown" || k === "w" || k === "s") {
+          state.menuIndex = 1 - state.menuIndex; beep(520, 0.04);
+        } else if (k === "arrowleft" || k === "a") changeDifficulty(-1);
+        else if (k === "arrowright" || k === "d") changeDifficulty(1);
+        else if (k === "1") { state.menuIndex = 0; startGame(); }
+        else if (k === "2") { state.menuIndex = 1; startGame(); }
+        else if (k === "enter" || k === " ") startGame();
+        break;
+      case "serve":
+      case "play":
+        if (k === "p" || k === "escape") pauseGame();
+        else if (k === "m") toMenu();
+        break;
+      case "pause":
+        if (k === "p" || k === " " || k === "enter") resumeGame();
+        else if (k === "escape" || k === "q" || k === "m") toMenu();
+        break;
+      case "over":
+        if (k === "enter" || k === " ") startGame();
+        else if (k === "escape") toMenu();
+        break;
+    }
+  }
+
+  // ---- Touch / Maus ----
+  // Jeder Finger wird beim Aufsetzen der Bildschirmhälfte zugeordnet, auf der er startet,
+  // und steuert dann den Schläger dieser Seite – mehrere Finger gleichzeitig möglich.
+  // y folgt dem Finger direkt, x (vor/zurück) relativ zur Aufsetzposition.
+  const touchCtl = new Map(); // pointerId -> { side, x, y, anchorX, t }
+  let mouseY = null, mouseX = null, mouseActive = false;
+  let buttons = [];           // in diesem Frame gezeichnete Schaltflächen (CSS-Pixel)
+
+  canvas.addEventListener("pointerdown", (e) => {
+    ensureAudio();
+    e.preventDefault();
+    const c = cssPoint(e);
+    if (state.screen === "menu" || state.screen === "pause" || state.screen === "over") {
+      const b = buttons.find((b) => c.x >= b.x0 && c.x <= b.x1 && c.y >= b.y0 && c.y <= b.y1);
+      if (b) b.action();
+      return;
+    }
+    const p = toLogical(c.x, c.y);
+    const side = state.twoPlayer ? (p.x < W / 2 ? "left" : "right") : "left";
+    touchCtl.set(e.pointerId, { side, x: p.x, y: p.y, anchorX: p.x - state[side].x, t: performance.now() });
+    try { canvas.setPointerCapture(e.pointerId); } catch { /* ignorieren */ }
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    const c = cssPoint(e);
+    const p = toLogical(c.x, c.y);
+    const ctl = touchCtl.get(e.pointerId);
+    if (ctl) { ctl.x = p.x; ctl.y = p.y; }
+    if (e.pointerType === "mouse") { mouseX = p.x; mouseY = p.y; mouseActive = true; }
+  });
+  const endPointer = (e) => touchCtl.delete(e.pointerId);
+  canvas.addEventListener("pointerup", endPointer);
+  canvas.addEventListener("pointercancel", endPointer);
+  canvas.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") mouseX = mouseY = null; });
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  function touchTarget(side) {
+    let best = null;
+    for (const c of touchCtl.values()) if (c.side === side && (!best || c.t > best.t)) best = c;
+    return best ? { x: best.x - best.anchorX, y: best.y } : null;
+  }
+
+  // ---- Vollbild & Pause-Button ----
+  const fsButton = document.getElementById("fullscreen");
+  const pauseButton = document.getElementById("pause");
+  const menuButton = document.getElementById("menu");
+  const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+  function toggleFullscreen() {
+    const root = document.documentElement;
+    if (fsElement()) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      const req = root.requestFullscreen || root.webkitRequestFullscreen;
+      if (req) {
+        const r = req.call(root);
+        if (r && r.catch) r.catch(() => {});
+      }
+    }
+  }
+  function onFullscreenChange() {
+    document.body.classList.toggle("is-fullscreen", !!fsElement());
+    fsButton.title = fsElement() ? "Vollbild beenden (F)" : "Vollbild (F)";
+    resize();
+  }
+  document.addEventListener("fullscreenchange", onFullscreenChange);
+  document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+  fsButton.addEventListener("click", () => { toggleFullscreen(); fsButton.blur(); });
+  pauseButton.addEventListener("click", () => { pauseGame(); pauseButton.blur(); });
+  menuButton.addEventListener("click", () => { toMenu(); menuButton.blur(); });
+  if (!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) {
+    fsButton.hidden = true; // Browser ohne Vollbild-Unterstützung (z. B. Safari auf dem iPhone)
+  }
+
+  // ---- Audio (WebAudio, ohne Dateien) ----
+  let audio = null;
+  function ensureAudio() {
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch { audio = null; }
+    }
+    if (audio && audio.state === "suspended") audio.resume();
+  }
+  function beep(freq, dur = 0.06, type = "square", vol = 0.08) {
+    if (!audio) return;
+    const t = audio.currentTime;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + dur);
+  }
+
+  // ---- Spielablauf ----
+  function startGame() {
+    state.twoPlayer = state.menuIndex === 1;
+    state.left.score = 0;
+    state.right.score = 0;
+    state.left.y = state.right.y = H / 2 - PADDLE_H / 2;
+    for (const [p, home] of [[state.left, LEFT_HOME], [state.right, RIGHT_HOME]]) { p.x = p.prevX = home; p.vx = 0; }
+    state.serveDir = Math.random() < 0.5 ? -1 : 1;
+    state.particles = [];
+    touchCtl.clear();
+    resetBall();
+    beep(660, 0.1, "triangle");
+  }
+  function pauseGame() {
+    if (state.screen === "play" || state.screen === "serve") { state.screen = "pause"; touchCtl.clear(); }
+  }
+  function resumeGame() { state.screen = state.ball.vx === 0 ? "serve" : "play"; }
+  function toMenu() { state.screen = "menu"; touchCtl.clear(); }
+  function changeDifficulty(d) {
+    state.diffIndex = (state.diffIndex + DIFF_KEYS.length + d) % DIFF_KEYS.length;
+    beep(440, 0.04);
+  }
+
+  function resetBall() {
+    const b = state.ball;
+    b.x = W / 2; b.y = H / 2; b.vx = 0; b.vy = 0;
+    b.speed = b.base = BALL_START_SPEED; b.boost = 0;
+    state.serveTimer = 1.0;
+    state.screen = "serve";
+  }
+
+  function serve() {
+    const b = state.ball;
+    const angle = (Math.random() * 0.8 - 0.4); // ca. ±23°
+    b.vx = Math.cos(angle) * b.speed * state.serveDir;
+    b.vy = Math.sin(angle) * b.speed;
+    state.screen = "play";
+  }
+
+  function clampPaddle(p) {
+    p.y = Math.max(0, Math.min(H - PADDLE_H, p.y));
+    const lo = p === state.left ? LEFT_HOME : RIGHT_HOME - REACH;
+    p.x = Math.max(lo, Math.min(lo + REACH, p.x));
+  }
+  function followX(p, targetX, dt) {
+    const maxStep = PADDLE_X_MAX_SPEED * dt;
+    p.x += Math.max(-maxStep, Math.min(maxStep, targetX - p.x));
+  }
+  function followTarget(p, centerY, dt, factor) {
+    const maxStep = PADDLE_SPEED * factor * dt;
+    const diff = centerY - PADDLE_H / 2 - p.y;
+    p.y += Math.max(-maxStep, Math.min(maxStep, diff));
+  }
+
+  function updatePaddles(dt) {
+    const L = state.left, R = state.right;
+
+    // Links: Touch, sonst W/S (im 1-Spieler-Modus auch Pfeiltasten), sonst Maus
+    let dirL = 0;
+    if (keys.has("w")) dirL -= 1;
+    if (keys.has("s")) dirL += 1;
+    if (!state.twoPlayer) {
+      if (keys.has("arrowup")) dirL -= 1;
+      if (keys.has("arrowdown")) dirL += 1;
+    }
+    // Vor/zurück: D = vor, A = zurück (1 Spieler auch → / ←)
+    let fwdL = 0;
+    if (keys.has("d")) fwdL += 1;
+    if (keys.has("a")) fwdL -= 1;
+    if (!state.twoPlayer) {
+      if (keys.has("arrowright")) fwdL += 1;
+      if (keys.has("arrowleft")) fwdL -= 1;
+    }
+    const tL = touchTarget("left");
+    if (tL !== null) { followTarget(L, tL.y, dt, TOUCH_SPEED_FACTOR); followX(L, tL.x, dt); }
+    else {
+      if (dirL !== 0) L.y += Math.sign(dirL) * PADDLE_SPEED * dt;
+      else if (mouseActive && mouseY !== null && !state.twoPlayer) followTarget(L, mouseY, dt, 1.6);
+      if (fwdL !== 0) L.x += Math.sign(fwdL) * PADDLE_X_SPEED * dt;
+      else if (mouseActive && mouseX !== null && !state.twoPlayer) followX(L, mouseX - PADDLE_W / 2, dt);
+    }
+    clampPaddle(L);
+
+    // Rechts: Touch oder Pfeiltasten (2 Spieler), sonst KI
+    if (state.twoPlayer) {
+      const tR = touchTarget("right");
+      if (tR !== null) { followTarget(R, tR.y, dt, TOUCH_SPEED_FACTOR); followX(R, tR.x, dt); }
+      else {
+        let dirR = 0;
+        if (keys.has("arrowup")) dirR -= 1;
+        if (keys.has("arrowdown")) dirR += 1;
+        R.y += dirR * PADDLE_SPEED * dt;
+        // ← = vor (ins Feld), → = zurück
+        let fwdR = 0;
+        if (keys.has("arrowleft")) fwdR += 1;
+        if (keys.has("arrowright")) fwdR -= 1;
+        R.x -= fwdR * PADDLE_X_SPEED * dt;
+      }
+    } else {
+      updateAI(dt);
+    }
+    clampPaddle(R);
+
+    // Geglättete Geschwindigkeit in x-Richtung (für den Schwung)
+    for (const p of [L, R]) {
+      const raw = (p.x - p.prevX) / dt;
+      p.vx = p.vx * 0.4 + raw * 0.6;
+    }
+  }
+
+  function updateAI(dt) {
+    const d = DIFFICULTY[DIFF_KEYS[state.diffIndex]];
+    const R = state.right, b = state.ball, ai = state.ai;
+
+    ai.timer -= dt;
+    if (ai.timer <= 0) {
+      ai.timer = d.reaction;
+      if (b.vx > 0) {
+        // Vorhersage, wo der Ball ankommt (inkl. Abprallen an Wänden)
+        const targetX = R.x;
+        const t = (targetX - b.x) / b.vx;
+        let y = b.y + b.vy * t;
+        const span = H - 2 * BALL_R;
+        y -= BALL_R;
+        y = ((y % (2 * span)) + 2 * span) % (2 * span);
+        if (y > span) y = 2 * span - y;
+        y += BALL_R;
+        ai.target = y + (Math.random() * 2 - 1) * d.error;
+      } else {
+        ai.target = H / 2; // zurück zur Mitte
+      }
+    }
+    const center = R.y + PADDLE_H / 2;
+    const diff = ai.target - center;
+    const maxStep = PADDLE_SPEED * d.speed * dt;
+    if (Math.abs(diff) > 4) R.y += Math.max(-maxStep, Math.min(maxStep, diff));
+
+    // Schwung: kurz vor dem Treffer nach vorne schnellen, sonst zurück in die Ausgangsposition
+    // (pro anfliegendem Ball wird einmal entschieden, ob und wie stark geschwungen wird)
+    if (b.vx <= 0) ai.swing = false;
+    else if (!ai.swingDecided) {
+      ai.swing = Math.random() < d.swing;
+      ai.swingSpeed = 600 + Math.random() * 800;
+    }
+    ai.swingDecided = b.vx > 0;
+    const dist = R.x - (b.x + BALL_R);
+    const timeToHit = b.vx > 0 ? dist / b.vx : Infinity;
+    const lunge = ai.swing && dist > -PADDLE_W && timeToHit < 0.09;
+    const xSpeed = (lunge ? ai.swingSpeed : 300) * dt;
+    const tx = lunge ? RIGHT_HOME - REACH : RIGHT_HOME;
+    R.x += Math.max(-xSpeed, Math.min(xSpeed, tx - R.x));
+  }
+
+  function paddleHit(paddleX, p, dir) {
+    const b = state.ball;
+    const rel = (b.y - (p.y + PADDLE_H / 2)) / (PADDLE_H / 2); // -1 .. 1
+    const angle = Math.max(-1, Math.min(1, rel)) * (Math.PI / 3.2); // max ca. 56°
+    b.base = Math.min(BALL_MAX_SPEED, b.base * BALL_SPEEDUP);
+    // Schwung = Geschwindigkeit des Schlägers Richtung Gegner
+    const forward = p.vx * dir;
+    const swing = Math.max(0, Math.min(1, (forward - SWING_MIN) / (SWING_FULL - SWING_MIN)));
+    b.boost = swing * SWING_MAX_BOOST;
+    b.speed = Math.min(BALL_SWING_MAX_SPEED, b.base * (1 + b.boost));
+    b.vx = Math.cos(angle) * b.speed * dir;
+    b.vy = Math.sin(angle) * b.speed;
+    b.x = paddleX + dir * (BALL_R + 0.5);
+    spawnParticles(b.x, b.y, dir, swing > 0 ? 12 + Math.round(swing * 24) : 12);
+    if (swing > 0) {
+      beep(700 + swing * 500, 0.08, "sawtooth", 0.07);
+      if (navigator.vibrate && isTouch) navigator.vibrate(20 + Math.round(swing * 30));
+    } else {
+      beep(dir > 0 ? 440 : 520, 0.05);
+      if (navigator.vibrate && isTouch) navigator.vibrate(15);
+    }
+  }
+
+  function updateBall(dt) {
+    const b = state.ball, L = state.left, R = state.right;
+
+    // In Teilschritten bewegen, damit schnelle Bälle nicht durch Schläger tunneln
+    // Auch die Schläger-Bewegung in x wird in Teilschritte zerlegt (schnelle Schwünge)
+    const paddleMove = Math.max(Math.abs(L.x - L.prevX), Math.abs(R.x - R.prevX));
+    const steps = Math.max(1, Math.ceil((b.speed * dt) / BALL_R), Math.ceil(paddleMove / (BALL_R * 0.75)));
+    const sdt = dt / steps;
+    const lx0 = L.prevX, rx0 = R.prevX, lx1 = L.x, rx1 = R.x;
+    for (let i = 0; i < steps; i++) {
+      const f = (i + 1) / steps;
+      const lx = lx0 + (lx1 - lx0) * f, rx = rx0 + (rx1 - rx0) * f;
+      b.x += b.vx * sdt;
+      b.y += b.vy * sdt;
+
+      if (b.y - BALL_R < 0) { b.y = BALL_R; b.vy = Math.abs(b.vy); beep(300, 0.03); }
+      else if (b.y + BALL_R > H) { b.y = H - BALL_R; b.vy = -Math.abs(b.vy); beep(300, 0.03); }
+
+      const lFace = lx + PADDLE_W;
+      if (b.vx < 0 && b.x - BALL_R <= lFace && b.x - BALL_R >= lx - BALL_R &&
+          b.y + BALL_R >= L.y && b.y - BALL_R <= L.y + PADDLE_H) {
+        paddleHit(lFace, L, 1);
+      }
+      const rFace = rx;
+      if (b.vx > 0 && b.x + BALL_R >= rFace && b.x + BALL_R <= rx + PADDLE_W + BALL_R &&
+          b.y + BALL_R >= R.y && b.y - BALL_R <= R.y + PADDLE_H) {
+        paddleHit(rFace, R, -1);
+      }
+
+      if (b.x + BALL_R < 0) { point("right"); return; }
+      if (b.x - BALL_R > W) { point("left"); return; }
+    }
+  }
+
+  function point(side) {
+    state[side].score++;
+    state.serveDir = side === "left" ? 1 : -1; // Ball geht zum Verlierer des Punktes
+    beep(side === "left" ? 880 : 220, 0.25, "sawtooth", 0.06);
+    if (state[side].score >= WIN_SCORE) {
+      state.winnerSide = side;
+      state.screen = "over";
+      state.ball.vx = state.ball.vy = 0;
+      touchCtl.clear();
+      setTimeout(() => beep(990, 0.4, "triangle", 0.08), 250);
+    } else {
+      resetBall();
+    }
+  }
+
+  function spawnParticles(x, y, dir, count = 12) {
+    for (let i = 0; i < count; i++) {
+      const a = (Math.random() - 0.5) * Math.PI * 0.9;
+      const s = 80 + Math.random() * 220;
+      state.particles.push({ x, y, vx: Math.cos(a) * s * dir, vy: Math.sin(a) * s, life: 0.4 + Math.random() * 0.3 });
+    }
+  }
+
+  function updateParticles(dt) {
+    for (const p of state.particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+    state.particles = state.particles.filter((p) => p.life > 0);
+  }
+
+  // ---- Zeichen-Hilfen ----
+  function drawText(text, x, y, size, align = "center", color = "#e8ecf5", weight = "700") {
+    ctx.fillStyle = color;
+    ctx.font = `${weight} ${size}px ${FONT}`;
+    ctx.textAlign = align;
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+    else ctx.rect(x, y, w, h);
+  }
+
+  // Zeichnet eine Schaltfläche (zentriert bei x/y) und merkt sich ihre Bildschirmposition für Klicks/Taps
+  function button(label, x, y, w, h, action, { selected = false, size = 22 } = {}) {
+    roundRect(x - w / 2, y - h / 2, w, h, 12);
+    ctx.fillStyle = selected ? "rgba(255,209,102,0.16)" : "rgba(232,236,245,0.07)";
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = selected ? "#ffd166" : "rgba(232,236,245,0.3)";
+    ctx.stroke();
+    drawText(label, x, y + 1, size, "center", selected ? "#ffd166" : "#e8ecf5", selected ? "700" : "600");
+
+    const m = ctx.getTransform();
+    const a = m.transformPoint(new DOMPoint(x - w / 2, y - h / 2));
+    const b = m.transformPoint(new DOMPoint(x + w / 2, y + h / 2));
+    const d = view.dpr;
+    buttons.push({
+      x0: Math.min(a.x, b.x) / d, x1: Math.max(a.x, b.x) / d,
+      y0: Math.min(a.y, b.y) / d, y1: Math.max(a.y, b.y) / d,
+      action,
+    });
+  }
+
+  // Bereiche, in denen Overlay-Texte gezeichnet werden. Im Hochformat mit 2 Spielern
+  // bekommt jeder Spieler eine eigene, zu ihm gedrehte Kopie (unten = Spieler 1, oben = Spieler 2).
+  function viewers() {
+    const { w, h } = view;
+    if (view.portrait && state.twoPlayer && state.screen !== "menu") {
+      const k = Math.min(w / 560, (h / 2) / 330, 1.6);
+      return [
+        { cx: w / 2, cy: h * 0.75, rot: 0, k, side: "left" },
+        { cx: w / 2, cy: h * 0.25, rot: Math.PI, k, side: "right" },
+      ];
+    }
+    const k = Math.min(w / 640, h / (view.portrait ? 640 : 580), 1.6);
+    return [{ cx: w / 2, cy: h / 2, rot: 0, k, side: null }];
+  }
+  function forEachViewer(fn) {
+    for (const v of viewers()) {
+      ctx.save();
+      uiTransform();
+      ctx.translate(v.cx, v.cy);
+      ctx.rotate(v.rot);
+      ctx.scale(v.k, v.k);
+      fn(v);
+      ctx.restore();
+    }
+  }
+
+  // ---- Zeichnen ----
+  function drawField() {
+    uiTransform();
+    ctx.fillStyle = "#0b0f1a";
+    ctx.fillRect(0, 0, view.w, view.h);
+
+    gameTransform();
+    ctx.fillStyle = "#0e1424";
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = "rgba(232,236,245,0.12)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, W - 2, H - 2);
+    ctx.fillStyle = "rgba(232,236,245,0.18)";
+    for (let y = 10; y < H; y += 30) ctx.fillRect(W / 2 - 2, y, 4, 16);
+
+    // Bewegungszone der Schläger (1/10 des Feldes)
+    ctx.fillStyle = "rgba(232,236,245,0.035)";
+    ctx.fillRect(LEFT_HOME, 0, REACH + PADDLE_W, H);
+    ctx.fillRect(RIGHT_HOME - REACH, 0, REACH + PADDLE_W, H);
+    ctx.fillStyle = "rgba(232,236,245,0.12)";
+    for (let y = 6; y < H; y += 18) {
+      ctx.fillRect(LEFT_HOME + REACH + PADDLE_W, y, 2, 8);
+      ctx.fillRect(RIGHT_HOME - REACH - 2, y, 2, 8);
+    }
+  }
+
+  function drawScores() {
+    if (state.screen === "menu") return;
+    uiTransform();
+    const size = 56 * view.s;
+    const color = "rgba(232,236,245,0.85)";
+    if (!view.portrait) {
+      const l = toScreen(W / 2 - 80, 60), r = toScreen(W / 2 + 80, 60);
+      drawText(String(state.left.score), l.x, l.y, size, "center", color);
+      drawText(String(state.right.score), r.x, r.y, size, "center", color);
+    } else {
+      // Jeder Spieler sieht seinen Punktestand nahe der Mittellinie, zu ihm gedreht
+      const l = toScreen(W / 2 - 140, H - 60);
+      drawText(String(state.left.score), l.x, l.y, size, "center", color);
+      const r = toScreen(W / 2 + 140, 60);
+      ctx.save();
+      ctx.translate(r.x, r.y);
+      ctx.rotate(Math.PI);
+      drawText(String(state.right.score), 0, 0, size, "center", color);
+      ctx.restore();
+    }
+  }
+
+  function drawObjects() {
+    gameTransform();
+    ctx.fillStyle = "#e8ecf5";
+    ctx.fillRect(state.left.x, state.left.y, PADDLE_W, PADDLE_H);
+    ctx.fillStyle = "#4fd1c5";
+    ctx.fillRect(state.right.x, state.right.y, PADDLE_W, PADDLE_H);
+
+    for (const p of state.particles) {
+      ctx.fillStyle = `rgba(255,209,102,${Math.max(0, p.life * 2)})`;
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    }
+
+    const b = state.ball;
+    if (b.boost > 0 && state.screen !== "menu") {
+      // Schweif für Schwung-Bälle
+      const len = 0.035 * (0.5 + b.boost);
+      for (let i = 4; i >= 1; i--) {
+        ctx.fillStyle = `rgba(255,140,66,${0.12 * (5 - i) * (0.5 + b.boost)})`;
+        ctx.beginPath();
+        ctx.arc(b.x - b.vx * len * i / 4, b.y - b.vy * len * i / 4, BALL_R * (1 - i * 0.12), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.fillStyle = b.boost > 0.25 && state.screen !== "menu" ? "#ff8c42" : "#ffd166";
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function dim() {
+    uiTransform();
+    ctx.fillStyle = "rgba(11,15,26,0.78)";
+    ctx.fillRect(0, 0, view.w, view.h);
+  }
+
+  const MUTED = "rgba(232,236,245,0.6)";
+
+  function drawMenu() {
+    dim();
+    forEachViewer(() => {
+      drawText("PONG", 0, -200, 92, "center", "#4fd1c5", "800");
+      button("1 Spieler (gegen Computer)", 0, -85, 440, 64, () => { state.menuIndex = 0; startGame(); },
+        { selected: state.menuIndex === 0 });
+      button("◀", -170, -10, 56, 48, () => changeDifficulty(-1), { size: 20 });
+      drawText(`Schwierigkeit: ${DIFF_KEYS[state.diffIndex].toUpperCase()}`, 0, -10, 20, "center", "#e8ecf5", "500");
+      button("▶", 170, -10, 56, 48, () => changeDifficulty(1), { size: 20 });
+      button("2 Spieler", 0, 70, 440, 64, () => { state.menuIndex = 1; startGame(); },
+        { selected: state.menuIndex === 1 });
+
+      let lines;
+      if (isTouch) {
+        lines = [
+          view.portrait
+            ? "2 Spieler: unten Spieler 1, oben Spieler 2"
+            : "2 Spieler: links Spieler 1, rechts Spieler 2",
+          "Jeder steuert mit dem Finger auf seiner Hälfte",
+          "Finger nach vorne schnellen = Schwung, Ball wird schneller",
+        ];
+      } else {
+        lines = [
+          "Enter = Start  ·  Pfeiltasten = Auswahl / Schwierigkeit",
+          state.menuIndex === 0
+            ? "Steuerung: W/A/S/D, Pfeiltasten oder Maus"
+            : "Spieler 1: W/A/S/D  ·  Spieler 2: Pfeiltasten",
+          "Nach vorne schlagen = Schwung, Ball wird schneller",
+          "P = Pause  ·  M = Menü  ·  F = Vollbild",
+        ];
+      }
+      lines.push(`Wer zuerst ${WIN_SCORE} Punkte hat, gewinnt.`);
+      lines.forEach((l, i) => drawText(l, 0, 140 + i * 28, 16, "center", MUTED, "500"));
+    });
+  }
+
+  function drawPause() {
+    dim();
+    forEachViewer(() => {
+      drawText("PAUSE", 0, -70, 60);
+      button("Weiter", -105, 20, 190, 60, resumeGame, { selected: true });
+      button("Menü", 105, 20, 190, 60, toMenu);
+      if (!isTouch) drawText("P / Leertaste = weiter  ·  Q = Menü", 0, 90, 17, "center", MUTED, "500");
+    });
+  }
+
+  function drawOver() {
+    dim();
+    forEachViewer((v) => {
+      let title, a = state.left.score, b = state.right.score;
+      if (v.side) {
+        // Eigene Sicht im geteilten Hochformat
+        title = state.winnerSide === v.side ? "Gewonnen!" : "Verloren";
+        if (v.side === "right") [a, b] = [b, a];
+      } else if (state.twoPlayer) {
+        title = state.winnerSide === "left" ? "Spieler 1 gewinnt!" : "Spieler 2 gewinnt!";
+      } else {
+        title = state.winnerSide === "left" ? "Du gewinnst!" : "Computer gewinnt!";
+      }
+      drawText(title, 0, -85, 56, "center", "#ffd166", "800");
+      drawText(`${a} : ${b}`, 0, -25, 32);
+      button("Nochmal", -105, 55, 190, 60, startGame, { selected: true });
+      button("Menü", 105, 55, 190, 60, toMenu);
+      if (!isTouch) drawText("Enter = Nochmal  ·  Esc = Menü", 0, 120, 17, "center", MUTED, "500");
+    });
+  }
+
+  function drawServeHint() {
+    forEachViewer((v) => {
+      drawText("Bereit…", 0, v.side ? -60 : -70, 22, "center", MUTED, "500");
+    });
+  }
+
+  // ---- Hauptschleife ----
+  let last = performance.now();
+  let playingClass = false;
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+
+    if (state.screen === "serve" || state.screen === "play") {
+      state.left.prevX = state.left.x;
+      state.right.prevX = state.right.x;
+      updatePaddles(dt);
+      if (state.screen === "serve") {
+        state.serveTimer -= dt;
+        if (state.serveTimer <= 0) serve();
+      } else {
+        updateBall(dt);
+      }
+    } else if (state.screen === "menu") {
+      // Demo im Hintergrund: Ball hüpft langsam herum
+      const b = state.ball;
+      if (b.vx === 0) { b.vx = 220; b.vy = 160; }
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.x < BALL_R || b.x > W - BALL_R) b.vx *= -1;
+      if (b.y < BALL_R || b.y > H - BALL_R) b.vy *= -1;
+    }
+    updateParticles(dt);
+
+    const playing = state.screen === "play" || state.screen === "serve";
+    if (playing !== playingClass) { document.body.classList.toggle("playing", playing); playingClass = playing; }
+
+    buttons = [];
+    drawField();
+    drawScores();
+    drawObjects();
+    if (state.screen === "serve") drawServeHint();
+    else if (state.screen === "menu") drawMenu();
+    else if (state.screen === "pause") drawPause();
+    else if (state.screen === "over") drawOver();
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
